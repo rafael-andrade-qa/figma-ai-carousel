@@ -12,6 +12,8 @@ type ErrorResponse = {
   error: string;
 };
 
+const BACKEND_URL = "http://localhost:3001";
+
 export type CreditsResponse = {
   email: string;
   credits: number;
@@ -24,6 +26,19 @@ export type PurchaseCreditsResponse = {
   credits: number;
   purchasedCredits: number;
   packageId: PurchasePackageId;
+};
+
+export type CreateCheckoutSessionResponse = {
+  checkoutUrl: string | null;
+  checkoutSessionId: string;
+  localCheckoutSessionId: string;
+  package: {
+    id: PurchasePackageId;
+    label: string;
+    credits: number;
+    amountCents: number;
+    currency: string;
+  };
 };
 
 export type CreditTransactionType =
@@ -50,7 +65,7 @@ export type TransactionsResponse = {
 export async function requestCarousel(
   input: GenerateCarouselInput
 ): Promise<CarouselResponse | ErrorResponse> {
-  const response = await fetch("http://localhost:3001/generate", {
+  const response = await fetch(`${BACKEND_URL}/generate`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -82,7 +97,7 @@ export async function requestCarousel(
 
 export async function requestCredits(userEmail: string): Promise<CreditsResponse> {
   const response = await fetch(
-    `http://localhost:3001/credits?userEmail=${encodeURIComponent(userEmail)}`
+    `${BACKEND_URL}/credits?userEmail=${encodeURIComponent(userEmail)}`
   );
 
   const rawText = await response.text();
@@ -98,7 +113,7 @@ export async function requestPurchaseCredits(input: {
   userEmail: string;
   packageId: PurchasePackageId;
 }): Promise<PurchaseCreditsResponse> {
-  const response = await fetch("http://localhost:3001/credits/purchase", {
+  const response = await fetch(`${BACKEND_URL}/credits/purchase`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -115,11 +130,32 @@ export async function requestPurchaseCredits(input: {
   return JSON.parse(rawText) as PurchaseCreditsResponse;
 }
 
+export async function requestCreateCheckoutSession(input: {
+  userEmail: string;
+  packageId: PurchasePackageId;
+}): Promise<CreateCheckoutSessionResponse> {
+  const response = await fetch(`${BACKEND_URL}/billing/checkout-sessions`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(input),
+  });
+
+  const rawText = await response.text();
+
+  if (!response.ok) {
+    throw new Error(`Backend retornou ${response.status}: ${rawText}`);
+  }
+
+  return JSON.parse(rawText) as CreateCheckoutSessionResponse;
+}
+
 export async function requestTransactions(
   userEmail: string
 ): Promise<TransactionsResponse> {
   const response = await fetch(
-    `http://localhost:3001/credits/transactions?userEmail=${encodeURIComponent(userEmail)}`
+    `${BACKEND_URL}/credits/transactions?userEmail=${encodeURIComponent(userEmail)}`
   );
 
   const rawText = await response.text();

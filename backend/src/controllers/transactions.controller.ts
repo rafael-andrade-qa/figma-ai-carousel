@@ -5,20 +5,18 @@ import { getUserTransactions } from "../services/credits.service";
 export async function getTransactions(req: Request, res: Response) {
   try {
     console.log("[BACKEND] GET /credits/transactions recebido");
-    console.log("[BACKEND] query:", req.query);
+    console.log("[BACKEND] user:", req.user);
 
-    const userEmail = req.query.userEmail;
-
-    if (!userEmail || typeof userEmail !== "string") {
-      return res.status(400).json({
-        error: "userEmail é obrigatório",
+    if (!req.user) {
+      return res.status(401).json({
+        error: "AUTH_REQUIRED",
       });
     }
 
-    const transactions = await getUserTransactions(userEmail);
+    const transactions = await getUserTransactions(req.user.email);
 
     return res.json({
-      email: userEmail.trim().toLowerCase(),
+      email: req.user.email,
       transactions,
     });
   } catch (error) {

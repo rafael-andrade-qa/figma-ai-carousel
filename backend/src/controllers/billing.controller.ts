@@ -9,17 +9,17 @@ export async function postCreateCheckoutSession(req: Request, res: Response) {
   try {
     console.log("[BACKEND] POST /billing/checkout-sessions recebido");
     console.log("[BACKEND] body:", req.body);
+    console.log("[BACKEND] user:", req.user);
 
-    const { userEmail, packageId } = req.body as {
-      userEmail?: string;
-      packageId?: string;
-    };
-
-    if (!userEmail || typeof userEmail !== "string") {
-      return res.status(400).json({
-        error: "userEmail é obrigatório",
+    if (!req.user) {
+      return res.status(401).json({
+        error: "AUTH_REQUIRED",
       });
     }
+
+    const { packageId } = req.body as {
+      packageId?: string;
+    };
 
     if (!packageId || typeof packageId !== "string") {
       return res.status(400).json({
@@ -28,7 +28,7 @@ export async function postCreateCheckoutSession(req: Request, res: Response) {
     }
 
     const result = await createStripeCheckoutSession({
-      userEmail,
+      userEmail: req.user.email,
       packageId,
     });
 

@@ -18,8 +18,8 @@ import {
   setUser,
 } from "./state";
 import {
+  requestCreateCheckoutSession,
   requestCredits,
-  requestPurchaseCredits,
   requestTransactions,
 } from "../api/backend";
 
@@ -40,6 +40,35 @@ async function loadDashboardData(email: string) {
   return {
     credits: creditsResult.credits,
     transactions: transactionsResult.transactions,
+  };
+}
+
+function openExternalUrl(url: string) {
+  window.open(url, "_blank", "noopener,noreferrer");
+}
+
+async function pollCreditsAfterCheckout(email: string, attempts = 8, delayMs = 2500) {
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try {
+      const result = await requestCredits(email);
+
+      if (result.credits > getState().credits) {
+        setCredits(result.credits);
+        return {
+          updated: true,
+          credits: result.credits,
+        };
+      }
+    } catch (error) {
+      console.error("[UI] Erro ao consultar créditos após checkout:", error);
+    }
+
+    await new Promise((resolve) => window.setTimeout(resolve, delayMs));
+  }
+
+  return {
+    updated: false,
+    credits: getState().credits,
   };
 }
 
@@ -124,25 +153,49 @@ export async function renderApp() {
         renderApp();
       },
       onBuy: async (packageId) => {
-        try {
-          const email = getState().user?.email;
+        const email = getState().user?.email;
 
-          if (!email) {
-            console.error("[UI] Usuário não encontrado para compra.");
-            return;
-          }
-
-          const result = await requestPurchaseCredits({
-            userEmail: email,
-            packageId,
-          });
-
-          setCredits(result.credits);
-          setScreen("dashboard");
-          renderApp();
-        } catch (error) {
-          console.error("[UI] Erro ao comprar créditos:", error);
+        if (!email) {
+          console.error("[UI] Usuário não encontrado para compra.");
+          throw new Error("Usuário não encontrado para compra.");
         }
+
+        const previousCredits = getState().credits;
+
+        const result = await requestCreateCheckoutSession({
+          userEmail: email,
+          packageId,
+        });
+
+        if (!result.checkoutUrl) {
+          throw new Error("Checkout URL não foi retornada pelo backend.");
+        }
+
+        openExternalUrl(result.checkoutUrl);
+
+        void pollCreditsAfterCheckout(email).then((pollResult) => {
+          if (pollResult.updated || pollResult.credits > previousCredits) {
+            setScreen("dashboard");
+            renderApp();
+          }
+        });
+      },
+      onRefreshCredits: async () => {
+        const email = getState().user?.email;
+
+        if (!email) {
+          console.error("[UI] Usuário não encontrado para atualizar créditos.");
+          throw new Error("Usuário não encontrado para atualizar créditos.");
+        }
+
+        const result = await requestCredits(email);
+        setCredits(result.credits);
+
+        if (result.credits > 0) {
+          setScreen("dashboard");
+        }
+
+        renderApp();
       },
     });
 

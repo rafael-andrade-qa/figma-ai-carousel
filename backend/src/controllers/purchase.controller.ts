@@ -21,18 +21,17 @@ export async function postPurchaseCredits(req: Request, res: Response) {
   try {
     console.log("[BACKEND] POST /credits/purchase recebido");
     console.log("[BACKEND] body:", req.body);
+    console.log("[BACKEND] user:", req.user);
 
-    const { userEmail, packageId } = req.body as {
-      userEmail?: string;
-      packageId?: string;
-    };
-
-    if (!userEmail || typeof userEmail !== "string") {
-      console.log("[BACKEND] userEmail inválido");
-      return res.status(400).json({
-        error: "userEmail é obrigatório",
+    if (!req.user) {
+      return res.status(401).json({
+        error: "AUTH_REQUIRED",
       });
     }
+
+    const { packageId } = req.body as {
+      packageId?: string;
+    };
 
     if (!packageId || typeof packageId !== "string") {
       console.log("[BACKEND] packageId inválido");
@@ -49,6 +48,8 @@ export async function postPurchaseCredits(req: Request, res: Response) {
         error: "Pacote inválido",
       });
     }
+
+    const userEmail = req.user.email;
 
     console.log(
       `[BACKEND] Adicionando ${selectedPackage.credits} créditos para ${userEmail}`

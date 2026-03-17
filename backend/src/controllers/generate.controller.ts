@@ -12,20 +12,29 @@ export async function postGenerate(req: Request, res: Response) {
   try {
     console.log("[BACKEND] POST /generate recebido");
     console.log("[BACKEND] body:", req.body);
+    console.log("[BACKEND] user:", req.user);
 
-    const { prompt, cards, userEmail } = req.body;
-
-    if (!prompt || typeof prompt !== "string") {
-      return res.status(400).json({ error: "Prompt é obrigatório" });
+    if (!req.user) {
+      return res.status(401).json({
+        error: "AUTH_REQUIRED",
+      });
     }
 
-    if (!userEmail || typeof userEmail !== "string") {
-      return res.status(400).json({ error: "Usuário é obrigatório" });
+    const { prompt, cards } = req.body as {
+      prompt?: string;
+      cards?: number;
+    };
+
+    if (!prompt || typeof prompt !== "string") {
+      return res.status(400).json({
+        error: "Prompt é obrigatório",
+      });
     }
 
     const totalCards =
       typeof cards === "number" && cards > 0 && cards <= 10 ? cards : 5;
 
+    const userEmail = req.user.email;
     const user = await ensureUserCredits(userEmail);
     const creditsCost = getCreditsCost(totalCards);
 

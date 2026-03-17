@@ -5,17 +5,15 @@ import { getUserCredits } from "../services/credits.service";
 export async function getCredits(req: Request, res: Response) {
   try {
     console.log("[BACKEND] GET /credits recebido");
-    console.log("[BACKEND] query:", req.query);
+    console.log("[BACKEND] user:", req.user);
 
-    const userEmail = req.query.userEmail;
-
-    if (!userEmail || typeof userEmail !== "string") {
-      return res.status(400).json({
-        error: "userEmail é obrigatório",
+    if (!req.user) {
+      return res.status(401).json({
+        error: "AUTH_REQUIRED",
       });
     }
 
-    const user = await getUserCredits(userEmail);
+    const user = await getUserCredits(req.user.email);
 
     return res.json({
       email: user.email,
