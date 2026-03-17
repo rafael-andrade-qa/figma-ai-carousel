@@ -1,10 +1,10 @@
 import { Request, Response } from "express";
 
-import { getUserCredits } from "../services/credits.service";
+import { getUserTransactions } from "../services/credits.service";
 
-export async function getCredits(req: Request, res: Response) {
+export async function getTransactions(req: Request, res: Response) {
   try {
-    console.log("[BACKEND] GET /credits recebido");
+    console.log("[BACKEND] GET /credits/transactions recebido");
     console.log("[BACKEND] query:", req.query);
 
     const userEmail = req.query.userEmail;
@@ -15,17 +15,17 @@ export async function getCredits(req: Request, res: Response) {
       });
     }
 
-    const user = getUserCredits(userEmail);
+    const transactions = getUserTransactions(userEmail);
 
     return res.json({
-      email: user.email,
-      credits: user.credits,
+      email: userEmail.trim().toLowerCase(),
+      transactions,
     });
   } catch (error) {
-    console.error("[BACKEND] Erro na rota /credits:", error);
+    console.error("[BACKEND] Erro na rota /credits/transactions:", error);
 
     return res.status(500).json({
-      error: "Erro ao buscar créditos",
+      error: "Erro ao buscar transações",
       detail: error instanceof Error ? error.message : "Erro desconhecido",
     });
   }

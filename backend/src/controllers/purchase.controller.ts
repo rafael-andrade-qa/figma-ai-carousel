@@ -2,9 +2,9 @@ import { Request, Response } from "express";
 import { addUserCredits, getUserCredits } from "../services/credits.service";
 
 const CREDIT_PACKAGES = {
-  starter: 20,
-  pro: 60,
-  studio: 150,
+  starter: { credits: 20, label: "Pacote Starter" },
+  pro: { credits: 60, label: "Pacote Pro" },
+  studio: { credits: 150, label: "Pacote Studio" },
 } as const;
 
 type PackageId = keyof typeof CREDIT_PACKAGES;
@@ -40,13 +40,17 @@ export async function postPurchaseCredits(req: Request, res: Response) {
       });
     }
 
-    const creditsToAdd = CREDIT_PACKAGES[packageId as PackageId];
+    const selectedPackage = CREDIT_PACKAGES[packageId as PackageId];
 
     console.log(
-      `[BACKEND] Adicionando ${creditsToAdd} créditos para ${userEmail}`
+      `[BACKEND] Adicionando ${selectedPackage.credits} créditos para ${userEmail}`
     );
 
-    addUserCredits(userEmail, creditsToAdd);
+    addUserCredits(
+      userEmail,
+      selectedPackage.credits,
+      `Compra de créditos - ${selectedPackage.label}`
+    );
 
     const user = getUserCredits(userEmail);
 
@@ -57,7 +61,7 @@ export async function postPurchaseCredits(req: Request, res: Response) {
     return res.json({
       email: user.email,
       credits: user.credits,
-      purchasedCredits: creditsToAdd,
+      purchasedCredits: selectedPackage.credits,
       packageId,
     });
   } catch (error) {

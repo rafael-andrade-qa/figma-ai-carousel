@@ -16,21 +16,15 @@ export async function postGenerate(req: Request, res: Response) {
     const { prompt, cards, userEmail } = req.body;
 
     if (!prompt || typeof prompt !== "string") {
-      console.log("[BACKEND] prompt inválido");
       return res.status(400).json({ error: "Prompt é obrigatório" });
     }
 
     if (!userEmail || typeof userEmail !== "string") {
-      console.log("[BACKEND] userEmail inválido");
       return res.status(400).json({ error: "Usuário é obrigatório" });
     }
 
     const totalCards =
       typeof cards === "number" && cards > 0 && cards <= 10 ? cards : 5;
-
-    console.log(
-      `[BACKEND] Parâmetros validados. userEmail=${userEmail}, cards=${totalCards}`
-    );
 
     const user = ensureUserCredits(userEmail);
     const creditsCost = getCreditsCost(totalCards);
@@ -42,28 +36,22 @@ export async function postGenerate(req: Request, res: Response) {
     const consumeResult = consumeUserCredits(userEmail, totalCards);
 
     if (!consumeResult.ok) {
-      console.log(
-        `[BACKEND] Usuário ${userEmail} sem créditos suficientes para gerar ${totalCards} cards`
-      );
+      console.log(`[BACKEND] Usuário ${user.email} sem créditos suficientes`);
 
       return res.status(402).json({
         error: "NO_CREDITS",
       });
     }
 
-    console.log(
-      `[BACKEND] Créditos consumidos com sucesso. Usados: ${consumeResult.creditsUsed}. Restantes: ${consumeResult.creditsLeft}`
-    );
-
     try {
-      console.log("[BACKEND] Iniciando geração do carrossel");
-
       const result = await generateCarousel({
         prompt,
         cards: totalCards,
       });
 
-      console.log("[BACKEND] Carrossel gerado com sucesso");
+      console.log(
+        `[BACKEND] Geração concluída para ${user.email}. Saldo restante: ${consumeResult.creditsLeft}`
+      );
 
       return res.json({
         ...result,
@@ -71,15 +59,10 @@ export async function postGenerate(req: Request, res: Response) {
         creditsLeft: consumeResult.creditsLeft,
       });
     } catch (error) {
-      console.error(
-        "[BACKEND] Erro durante a geração. Estornando créditos:",
-        error
-      );
-
       refundUserCredits(userEmail, consumeResult.creditsUsed);
 
       console.log(
-        `[BACKEND] Créditos estornados para ${userEmail}: ${consumeResult.creditsUsed}`
+        `[BACKEND] Falha na geração. Créditos estornados para ${user.email}`
       );
 
       throw error;
