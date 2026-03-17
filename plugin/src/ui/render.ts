@@ -2,7 +2,7 @@ import {
   addCredits,
   consumeCredits,
   getState,
-  grantFreeCredits,
+  setCredits,
   setScreen,
   setUser,
 } from "./state";
@@ -14,6 +14,8 @@ import {
 import { bindDashboardScreen, renderDashboardScreen } from "./screens/dashboard";
 import { bindPaywallScreen, renderPaywallScreen } from "./screens/paywall";
 import { bindWelcomeScreen, renderWelcomeScreen } from "./screens/welcome";
+
+import { requestCredits } from "../api/backend";
 
 function getRoot(): HTMLElement | null {
   return document.getElementById("app-root");
@@ -49,17 +51,23 @@ export function renderApp() {
     root.innerHTML = renderAuthScreen();
 
     bindAuthScreen({
-      onContinue: (email) => {
-        setUser(email);
+      onContinue: async (email) => {
+        try {
+          setUser(email);
 
-        if (state.credits <= 0) {
-          grantFreeCredits(5);
-          setScreen("creditsGranted");
-        } else {
-          setScreen("dashboard");
+          const result = await requestCredits(email);
+          setCredits(result.credits);
+
+          if (result.credits > 0 && !state.user) {
+            setScreen("creditsGranted");
+          } else {
+            setScreen("dashboard");
+          }
+
+          renderApp();
+        } catch (error) {
+          console.error("[UI] Erro ao buscar créditos:", error);
         }
-
-        renderApp();
       },
       onBack: () => {
         setScreen("welcome");
@@ -113,8 +121,19 @@ export function renderApp() {
       setScreen("paywall");
       renderApp();
     },
-    onSuccessfulGeneration: (creditsUsed) => {
+    onSuccessfulGeneration: async (creditsUsed) => {
       consumeCredits(creditsUsed);
+
+      const email = getState().user?.email;
+
+      if (email) {
+        try {
+          const result = await requestCredits(email);
+          setCredits(result.credits);
+        } catch (error) {
+          console.error("[UI] Erro ao sincronizar créditos:", error);
+        }
+      }
 
       const nextState = getState();
       if (nextState.credits <= 0) {

@@ -12,6 +12,11 @@ type ErrorResponse = {
   error: string;
 };
 
+export type CreditsResponse = {
+  email: string;
+  credits: number;
+};
+
 export async function requestCarousel(
   input: GenerateCarouselInput
 ): Promise<CarouselResponse | ErrorResponse> {
@@ -43,4 +48,18 @@ export async function requestCarousel(
   }
 
   return data;
+}
+
+export async function requestCredits(userEmail: string): Promise<CreditsResponse> {
+  const response = await fetch(
+    `http://localhost:3001/credits?userEmail=${encodeURIComponent(userEmail)}`
+  );
+
+  const rawText = await response.text();
+
+  if (!response.ok) {
+    throw new Error(`Backend retornou ${response.status}: ${rawText}`);
+  }
+
+  return JSON.parse(rawText) as CreditsResponse;
 }

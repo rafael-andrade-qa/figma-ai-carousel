@@ -3,6 +3,6 @@ import { postGenerate } from "../controllers/generate.controller";
 
 const router = Router();
 
-router.post("/", postGenerate);
+router.post("/generate", postGenerate);
 
 export default router;

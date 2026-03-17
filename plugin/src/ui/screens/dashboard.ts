@@ -179,7 +179,7 @@ export function bindDashboardScreen(actions: {
   credits: number;
   email: string;
   onOpenPaywall: () => void;
-  onSuccessfulGeneration: (creditsUsed: number) => void;
+  onSuccessfulGeneration: (creditsUsed: number) => void | Promise<void>;
 }) {
   const promptEl = document.getElementById("prompt") as HTMLTextAreaElement | null;
   const generateButton = document.getElementById("generate") as HTMLButtonElement | null;
