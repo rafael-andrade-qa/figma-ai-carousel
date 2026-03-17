@@ -2,3 +2,4 @@
 /backend/node_modules
 /plugin/node_modules
 *.json
+/plugin/dist
