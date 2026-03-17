@@ -108,6 +108,7 @@ export function renderApp() {
 
   bindDashboardScreen({
     credits: state.credits,
+    email: state.user?.email ?? "",
     onOpenPaywall: () => {
       setScreen("paywall");
       renderApp();

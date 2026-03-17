@@ -177,6 +177,7 @@ export function renderDashboardScreen(input: {
 
 export function bindDashboardScreen(actions: {
   credits: number;
+  email: string;
   onOpenPaywall: () => void;
   onSuccessfulGeneration: (creditsUsed: number) => void;
 }) {
@@ -277,6 +278,7 @@ export function bindDashboardScreen(actions: {
       prompt,
       cards: selectedCards,
       branding: getBranding(),
+      userEmail: actions.email,
     };
 
     pendingCreditsCost = creditsCost;
@@ -343,22 +345,32 @@ export function bindDashboardScreen(actions: {
         return;
       }
 
-      if (msg.type === "error") {
+        if (msg.type === "error") {
         setLoading(false);
+
+        if (msg.message === "NO_CREDITS") {
+            setStatus("Você ficou sem créditos.", "error");
+            pendingCreditsCost = 0;
+            actions.onOpenPaywall();
+            return;
+        }
+
         setStatus(msg.message, "error");
         pendingCreditsCost = 0;
         return;
-      }
+        }
 
-      if (msg.type === "success") {
+        if (msg.type === "success") {
         setLoading(false);
         setStatus(msg.message, "success");
 
-        if (pendingCreditsCost > 0) {
-          actions.onSuccessfulGeneration(pendingCreditsCost);
-          pendingCreditsCost = 0;
+        const creditsUsed = msg.creditsUsed ?? pendingCreditsCost;
+
+        if (creditsUsed > 0) {
+            actions.onSuccessfulGeneration(creditsUsed);
+            pendingCreditsCost = 0;
         }
-      }
+        }
     };
   }
 

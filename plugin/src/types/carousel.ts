@@ -10,4 +10,6 @@ export type CarouselCard = {
 
 export type CarouselResponse = {
   cards: CarouselCard[];
+  creditsUsed?: number;
+  creditsLeft?: number;
 };
