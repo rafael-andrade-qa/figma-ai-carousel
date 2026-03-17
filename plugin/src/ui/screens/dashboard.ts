@@ -135,9 +135,16 @@ export function renderDashboardScreen(input: {
                 3 e 5 cards consomem 1 crédito. 7 cards consome 2 créditos.
               </p>
             </div>
-            <button id="openPaywall" class="tiny-link-button" type="button">
-              Comprar créditos
-            </button>
+
+            <div style="display:flex; gap:10px; align-items:center;">
+              <button id="openTransactions" class="tiny-link-button" type="button">
+                Ver extrato
+              </button>
+
+              <button id="openPaywall" class="tiny-link-button" type="button">
+                Comprar créditos
+              </button>
+            </div>
           </div>
 
           <div class="cards-grid" id="cardsGrid">
@@ -179,6 +186,7 @@ export function bindDashboardScreen(actions: {
   credits: number;
   email: string;
   onOpenPaywall: () => void;
+  onOpenTransactions: () => void;
   onSuccessfulGeneration: (creditsUsed: number) => void | Promise<void>;
 }) {
   const promptEl = document.getElementById("prompt") as HTMLTextAreaElement | null;
@@ -193,6 +201,7 @@ export function bindDashboardScreen(actions: {
   const templateEl = document.getElementById("template") as HTMLSelectElement | null;
   const ctaLabelEl = document.getElementById("ctaLabel") as HTMLInputElement | null;
   const openPaywallButton = document.getElementById("openPaywall");
+  const openTransactionsButton = document.getElementById("openTransactions");
 
   const cardsOptions = Array.from(
     document.querySelectorAll<HTMLButtonElement>(".cards-option")
@@ -345,32 +354,32 @@ export function bindDashboardScreen(actions: {
         return;
       }
 
-        if (msg.type === "error") {
+      if (msg.type === "error") {
         setLoading(false);
 
         if (msg.message === "NO_CREDITS") {
-            setStatus("Você ficou sem créditos.", "error");
-            pendingCreditsCost = 0;
-            actions.onOpenPaywall();
-            return;
+          setStatus("Você ficou sem créditos.", "error");
+          pendingCreditsCost = 0;
+          actions.onOpenPaywall();
+          return;
         }
 
         setStatus(msg.message, "error");
         pendingCreditsCost = 0;
         return;
-        }
+      }
 
-        if (msg.type === "success") {
+      if (msg.type === "success") {
         setLoading(false);
         setStatus(msg.message, "success");
 
         const creditsUsed = msg.creditsUsed ?? pendingCreditsCost;
 
         if (creditsUsed > 0) {
-            actions.onSuccessfulGeneration(creditsUsed);
-            pendingCreditsCost = 0;
+          actions.onSuccessfulGeneration(creditsUsed);
+          pendingCreditsCost = 0;
         }
-        }
+      }
     };
   }
 
@@ -396,5 +405,6 @@ export function bindDashboardScreen(actions: {
   bindGenerateButton();
   bindPluginMessages();
   openPaywallButton?.addEventListener("click", actions.onOpenPaywall);
+  openTransactionsButton?.addEventListener("click", actions.onOpenTransactions);
   setStatus("Aguardando briefing para iniciar a geração.");
 }

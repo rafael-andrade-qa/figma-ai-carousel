@@ -3,7 +3,8 @@ export type AppScreen =
   | "auth"
   | "creditsGranted"
   | "dashboard"
-  | "paywall";
+  | "paywall"
+  | "transactions";
 
 export interface AppUser {
   email: string;

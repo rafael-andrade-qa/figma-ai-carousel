@@ -5,6 +5,10 @@ import {
 } from "./screens/creditsGranted";
 import { bindDashboardScreen, renderDashboardScreen } from "./screens/dashboard";
 import { bindPaywallScreen, renderPaywallScreen } from "./screens/paywall";
+import {
+  bindTransactionsScreen,
+  renderTransactionsScreen,
+} from "./screens/transactions";
 import { bindWelcomeScreen, renderWelcomeScreen } from "./screens/welcome";
 import {
   consumeCredits,
@@ -13,13 +17,33 @@ import {
   setScreen,
   setUser,
 } from "./state";
-import { requestCredits, requestPurchaseCredits } from "../api/backend";
+import {
+  requestCredits,
+  requestPurchaseCredits,
+  requestTransactions,
+} from "../api/backend";
+
+import type { CreditTransaction } from "../api/backend";
 
 function getRoot(): HTMLElement | null {
   return document.getElementById("app-root");
 }
 
-export function renderApp() {
+async function loadDashboardData(email: string) {
+  const [creditsResult, transactionsResult] = await Promise.all([
+    requestCredits(email),
+    requestTransactions(email),
+  ]);
+
+  setCredits(creditsResult.credits);
+
+  return {
+    credits: creditsResult.credits,
+    transactions: transactionsResult.transactions,
+  };
+}
+
+export async function renderApp() {
   const root = getRoot();
   const state = getState();
 
@@ -51,12 +75,14 @@ export function renderApp() {
     bindAuthScreen({
       onContinue: async (email) => {
         try {
+          const hadUserBefore = !!getState().user;
+
           setUser(email);
 
           const result = await requestCredits(email);
           setCredits(result.credits);
 
-          if (result.credits > 0 && !state.user) {
+          if (!hadUserBefore) {
             setScreen("creditsGranted");
           } else {
             setScreen("dashboard");
@@ -123,29 +149,80 @@ export function renderApp() {
     return;
   }
 
+  if (state.currentScreen === "transactions") {
+    const email = state.user?.email ?? "";
+    let transactions: CreditTransaction[] = [];
+
+    if (email) {
+      try {
+        const transactionsResult = await requestTransactions(email);
+        const creditsResult = await requestCredits(email);
+        setCredits(creditsResult.credits);
+        transactions = transactionsResult.transactions;
+      } catch (error) {
+        console.error("[UI] Erro ao carregar extrato:", error);
+      }
+    }
+
+    const latestState = getState();
+
+    root.innerHTML = renderTransactionsScreen({
+      credits: latestState.credits,
+      transactions,
+    });
+
+    bindTransactionsScreen({
+      onBack: () => {
+        setScreen("dashboard");
+        renderApp();
+      },
+    });
+
+    return;
+  }
+
+  const email = state.user?.email ?? "";
+  let transactions: CreditTransaction[] = [];
+
+  if (email) {
+    try {
+      const dashboardData = await loadDashboardData(email);
+      transactions = dashboardData.transactions;
+    } catch (error) {
+      console.error("[UI] Erro ao carregar dashboard:", error);
+    }
+  }
+
+  const latestState = getState();
+
   root.innerHTML = renderDashboardScreen({
-    credits: state.credits,
-    email: state.user?.email ?? null,
+    credits: latestState.credits,
+    email: latestState.user?.email ?? null,
   });
 
   bindDashboardScreen({
-    credits: state.credits,
-    email: state.user?.email ?? "",
+    credits: latestState.credits,
+    email: latestState.user?.email ?? "",
     onOpenPaywall: () => {
       setScreen("paywall");
+      renderApp();
+    },
+    onOpenTransactions: () => {
+      setScreen("transactions");
       renderApp();
     },
     onSuccessfulGeneration: async (creditsUsed) => {
       consumeCredits(creditsUsed);
 
-      const email = getState().user?.email;
+      const currentEmail = getState().user?.email;
 
-      if (email) {
+      if (currentEmail) {
         try {
-          const result = await requestCredits(email);
-          setCredits(result.credits);
+          const dashboardData = await loadDashboardData(currentEmail);
+          setCredits(dashboardData.credits);
+          transactions = dashboardData.transactions;
         } catch (error) {
-          console.error("[UI] Erro ao sincronizar créditos:", error);
+          console.error("[UI] Erro ao sincronizar dashboard:", error);
         }
       }
 

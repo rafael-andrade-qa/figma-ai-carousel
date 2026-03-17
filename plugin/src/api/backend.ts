@@ -26,6 +26,27 @@ export type PurchaseCreditsResponse = {
   packageId: PurchasePackageId;
 };
 
+export type CreditTransactionType =
+  | "free_trial"
+  | "purchase"
+  | "usage"
+  | "refund";
+
+export type CreditTransaction = {
+  id: string;
+  email: string;
+  type: CreditTransactionType;
+  amount: number;
+  balanceAfter: number;
+  description: string;
+  createdAt: string;
+};
+
+export type TransactionsResponse = {
+  email: string;
+  transactions: CreditTransaction[];
+};
+
 export async function requestCarousel(
   input: GenerateCarouselInput
 ): Promise<CarouselResponse | ErrorResponse> {
@@ -92,4 +113,20 @@ export async function requestPurchaseCredits(input: {
   }
 
   return JSON.parse(rawText) as PurchaseCreditsResponse;
+}
+
+export async function requestTransactions(
+  userEmail: string
+): Promise<TransactionsResponse> {
+  const response = await fetch(
+    `http://localhost:3001/credits/transactions?userEmail=${encodeURIComponent(userEmail)}`
+  );
+
+  const rawText = await response.text();
+
+  if (!response.ok) {
+    throw new Error(`Backend retornou ${response.status}: ${rawText}`);
+  }
+
+  return JSON.parse(rawText) as TransactionsResponse;
 }
