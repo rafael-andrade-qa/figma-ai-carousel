@@ -1,38 +1,51 @@
+import {
+  type CreditTransaction,
+  requestCreateCheckoutSession,
+  requestCredits,
+  requestTransactions,
+} from "../api/backend";
+import {
+  clearAuthenticatedSession,
+  consumeCredits,
+  getState,
+  setAuthenticatedSession,
+  setCredits,
+  setPendingEmail,
+  setScreen,
+} from "./state";
+import {
+  getAccessTokenOrThrow,
+  getCurrentSessionSnapshot,
+  onSupabaseAuthStateChange,
+  requestEmailOtp,
+  signOutSupabase,
+  verifyEmailOtp,
+} from "../lib/supabase";
+
 import { bindAuthScreen, renderAuthScreen } from "./screens/auth";
 import {
   bindCreditsGrantedScreen,
   renderCreditsGrantedScreen,
 } from "./screens/creditsGranted";
-import { bindDashboardScreen, renderDashboardScreen } from "./screens/dashboard";
+import {
+  bindDashboardScreen,
+  renderDashboardScreen,
+} from "./screens/dashboard";
 import { bindPaywallScreen, renderPaywallScreen } from "./screens/paywall";
 import {
   bindTransactionsScreen,
   renderTransactionsScreen,
 } from "./screens/transactions";
 import { bindWelcomeScreen, renderWelcomeScreen } from "./screens/welcome";
-import {
-  consumeCredits,
-  getState,
-  setCredits,
-  setScreen,
-  setUser,
-} from "./state";
-import {
-  requestCreateCheckoutSession,
-  requestCredits,
-  requestTransactions,
-} from "../api/backend";
 
-import type { CreditTransaction } from "../api/backend";
-
-function getRoot(): HTMLElement | null {
+function getRoot() {
   return document.getElementById("app-root");
 }
 
-async function loadDashboardData(email: string) {
+async function loadDashboardData(accessToken: string) {
   const [creditsResult, transactionsResult] = await Promise.all([
-    requestCredits(email),
-    requestTransactions(email),
+    requestCredits(accessToken),
+    requestTransactions(accessToken),
   ]);
 
   setCredits(creditsResult.credits);
@@ -47,13 +60,18 @@ function openExternalUrl(url: string) {
   window.open(url, "_blank", "noopener,noreferrer");
 }
 
-async function pollCreditsAfterCheckout(email: string, attempts = 8, delayMs = 2500) {
+async function pollCreditsAfterCheckout(
+  accessToken: string,
+  attempts = 8,
+  delayMs = 2500
+) {
   for (let attempt = 0; attempt < attempts; attempt += 1) {
     try {
-      const result = await requestCredits(email);
+      const result = await requestCredits(accessToken);
 
       if (result.credits > getState().credits) {
         setCredits(result.credits);
+
         return {
           updated: true,
           credits: result.credits,
@@ -72,14 +90,26 @@ async function pollCreditsAfterCheckout(email: string, attempts = 8, delayMs = 2
   };
 }
 
+export async function syncSessionWithSupabase() {
+  const snapshot = await getCurrentSessionSnapshot();
+
+  if (!snapshot) {
+    clearAuthenticatedSession();
+    return null;
+  }
+
+  setAuthenticatedSession(snapshot);
+  return snapshot;
+}
+
 export async function renderApp() {
   const root = getRoot();
-  const state = getState();
 
   if (!root) {
-    console.error("[UI] #app-root não encontrado.");
     return;
   }
+
+  const state = getState();
 
   if (state.currentScreen === "welcome") {
     root.innerHTML = renderWelcomeScreen();
@@ -89,41 +119,68 @@ export async function renderApp() {
         setScreen("auth");
         renderApp();
       },
-      onLogin: () => {
-        setScreen("auth");
-        renderApp();
-      },
     });
 
     return;
   }
 
   if (state.currentScreen === "auth") {
-    root.innerHTML = renderAuthScreen();
+    root.innerHTML = renderAuthScreen({
+      pendingEmail: state.pendingEmail,
+    });
 
     bindAuthScreen({
-      onContinue: async (email) => {
+      onBack: () => {
+        setPendingEmail(null);
+        setScreen("welcome");
+        renderApp();
+      },
+      onRequestCode: async (email) => {
         try {
-          const hadUserBefore = !!getState().user;
+          await requestEmailOtp(email);
+          setPendingEmail(email);
+          renderApp();
+        } catch (error) {
+          console.error("[UI] Erro ao solicitar OTP:", error);
+          window.alert(
+            error instanceof Error ? error.message : "Erro ao enviar código."
+          );
+        }
+      },
+      onVerifyCode: async (code) => {
+        try {
+          const email = getState().pendingEmail;
 
-          setUser(email);
+          if (!email) {
+            throw new Error("Nenhum email pendente para validação.");
+          }
 
-          const result = await requestCredits(email);
-          setCredits(result.credits);
+          const hadUserBefore = Boolean(getState().user?.email);
+
+          const session = await verifyEmailOtp(email, code);
+          setAuthenticatedSession(session);
+
+          const creditsResult = await requestCredits(session.accessToken);
+          setCredits(creditsResult.credits);
 
           if (!hadUserBefore) {
             setScreen("creditsGranted");
+          } else if (creditsResult.credits <= 0) {
+            setScreen("paywall");
           } else {
             setScreen("dashboard");
           }
 
           renderApp();
         } catch (error) {
-          console.error("[UI] Erro ao buscar créditos:", error);
+          console.error("[UI] Erro ao validar OTP:", error);
+          window.alert(
+            error instanceof Error ? error.message : "Erro ao validar código."
+          );
         }
       },
-      onBack: () => {
-        setScreen("welcome");
+      onChangeEmail: () => {
+        setPendingEmail(null);
         renderApp();
       },
     });
@@ -136,11 +193,17 @@ export async function renderApp() {
 
     bindCreditsGrantedScreen({
       onContinue: () => {
-        setScreen("dashboard");
+        setScreen(state.credits > 0 ? "dashboard" : "paywall");
         renderApp();
       },
     });
 
+    return;
+  }
+
+  if (!state.session) {
+    setScreen("auth");
+    renderApp();
     return;
   }
 
@@ -153,17 +216,11 @@ export async function renderApp() {
         renderApp();
       },
       onBuy: async (packageId) => {
-        const email = getState().user?.email;
-
-        if (!email) {
-          console.error("[UI] Usuário não encontrado para compra.");
-          throw new Error("Usuário não encontrado para compra.");
-        }
-
+        const accessToken = await getAccessTokenOrThrow();
         const previousCredits = getState().credits;
 
         const result = await requestCreateCheckoutSession({
-          userEmail: email,
+          accessToken,
           packageId,
         });
 
@@ -173,7 +230,7 @@ export async function renderApp() {
 
         openExternalUrl(result.checkoutUrl);
 
-        void pollCreditsAfterCheckout(email).then((pollResult) => {
+        void pollCreditsAfterCheckout(accessToken).then((pollResult) => {
           if (pollResult.updated || pollResult.credits > previousCredits) {
             setScreen("dashboard");
             renderApp();
@@ -181,14 +238,9 @@ export async function renderApp() {
         });
       },
       onRefreshCredits: async () => {
-        const email = getState().user?.email;
+        const accessToken = await getAccessTokenOrThrow();
+        const result = await requestCredits(accessToken);
 
-        if (!email) {
-          console.error("[UI] Usuário não encontrado para atualizar créditos.");
-          throw new Error("Usuário não encontrado para atualizar créditos.");
-        }
-
-        const result = await requestCredits(email);
         setCredits(result.credits);
 
         if (result.credits > 0) {
@@ -203,18 +255,17 @@ export async function renderApp() {
   }
 
   if (state.currentScreen === "transactions") {
-    const email = state.user?.email ?? "";
     let transactions: CreditTransaction[] = [];
 
-    if (email) {
-      try {
-        const transactionsResult = await requestTransactions(email);
-        const creditsResult = await requestCredits(email);
-        setCredits(creditsResult.credits);
-        transactions = transactionsResult.transactions;
-      } catch (error) {
-        console.error("[UI] Erro ao carregar extrato:", error);
-      }
+    try {
+      const accessToken = await getAccessTokenOrThrow();
+      const transactionsResult = await requestTransactions(accessToken);
+      const creditsResult = await requestCredits(accessToken);
+
+      setCredits(creditsResult.credits);
+      transactions = transactionsResult.transactions;
+    } catch (error) {
+      console.error("[UI] Erro ao carregar extrato:", error);
     }
 
     const latestState = getState();
@@ -234,23 +285,21 @@ export async function renderApp() {
     return;
   }
 
-  const email = state.user?.email ?? "";
   let transactions: CreditTransaction[] = [];
 
-  if (email) {
-    try {
-      const dashboardData = await loadDashboardData(email);
-      transactions = dashboardData.transactions;
-    } catch (error) {
-      console.error("[UI] Erro ao carregar dashboard:", error);
-    }
+  try {
+    const accessToken = await getAccessTokenOrThrow();
+    const dashboardData = await loadDashboardData(accessToken);
+    transactions = dashboardData.transactions;
+  } catch (error) {
+    console.error("[UI] Erro ao carregar dashboard:", error);
   }
 
   const latestState = getState();
 
   root.innerHTML = renderDashboardScreen({
     credits: latestState.credits,
-    email: latestState.user?.email ?? null,
+    email: latestState.user?.email ?? "",
   });
 
   bindDashboardScreen({
@@ -267,19 +316,17 @@ export async function renderApp() {
     onSuccessfulGeneration: async (creditsUsed) => {
       consumeCredits(creditsUsed);
 
-      const currentEmail = getState().user?.email;
-
-      if (currentEmail) {
-        try {
-          const dashboardData = await loadDashboardData(currentEmail);
-          setCredits(dashboardData.credits);
-          transactions = dashboardData.transactions;
-        } catch (error) {
-          console.error("[UI] Erro ao sincronizar dashboard:", error);
-        }
+      try {
+        const accessToken = await getAccessTokenOrThrow();
+        const dashboardData = await loadDashboardData(accessToken);
+        setCredits(dashboardData.credits);
+        transactions = dashboardData.transactions;
+      } catch (error) {
+        console.error("[UI] Erro ao sincronizar dashboard:", error);
       }
 
       const nextState = getState();
+
       if (nextState.credits <= 0) {
         setScreen("paywall");
       }
@@ -287,4 +334,41 @@ export async function renderApp() {
       renderApp();
     },
   });
+}
+
+export async function bootstrapApp() {
+  await syncSessionWithSupabase();
+
+  const state = getState();
+
+  if (state.session) {
+    if (state.credits > 0) {
+      setScreen("dashboard");
+    } else {
+      setScreen("paywall");
+    }
+  } else {
+    setScreen("welcome");
+  }
+
+  onSupabaseAuthStateChange((session) => {
+    if (!session) {
+      clearAuthenticatedSession();
+      setScreen("welcome");
+      void renderApp();
+      return;
+    }
+
+    setAuthenticatedSession(session);
+    void renderApp();
+  });
+
+  await renderApp();
+}
+
+export async function logoutFromApp() {
+  await signOutSupabase();
+  clearAuthenticatedSession();
+  setScreen("auth");
+  await renderApp();
 }

@@ -5,10 +5,10 @@ export type GenerateCarouselMessage = {
   prompt: string;
   cards: number;
   branding?: CarouselBranding;
-  userEmail: string;
+  accessToken: string;
 };
 
 export type PluginToUiMessage =
   | { type: "status"; message: string }
-  | { type: "error"; message: string }
+  | { type: "error"; message: string; creditsUsed?: number }
   | { type: "success"; message: string; creditsUsed?: number };

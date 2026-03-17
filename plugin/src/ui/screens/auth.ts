@@ -1,50 +1,71 @@
-export function renderAuthScreen(): string {
+export function renderAuthScreen(params: {
+  pendingEmail: string | null;
+}) {
+  const hasPendingEmail = Boolean(params.pendingEmail);
+
   return `
     <div class="app-shell">
-      <section class="hero hero-compact">
+      <div class="hero hero-compact">
         <div class="brand-row">
-          <div class="brand">
-            <div class="brand-mark">✦</div>
-            <span>Figma AI Carousel</span>
-          </div>
-          <div class="badge">Acesso inicial</div>
+          <button id="authBack" class="ghost-button" type="button">Voltar</button>
+          <div class="badge">Acesso seguro</div>
         </div>
 
-        <h1>Crie sua conta para salvar seus créditos</h1>
+        <h1>Entre com seu email</h1>
         <p>
-          Por enquanto vamos começar com um fluxo simples por e-mail. Depois você pode
-          evoluir isso para magic link ou Google login.
+          Vamos enviar um código para autenticar sua conta no plugin.
         </p>
-      </section>
+      </div>
 
       <div class="content">
         <div class="section">
-          <p class="section-title">Seu e-mail</p>
-          <p class="section-help">
-            Esse e-mail será usado para vincular seus créditos e o histórico de uso.
-          </p>
-
-          <label for="authEmail">E-mail</label>
+          <label for="authEmail">Email</label>
           <input
             id="authEmail"
             type="email"
             placeholder="voce@exemplo.com"
-            autocomplete="email"
+            value="${params.pendingEmail ?? ""}"
+            ${hasPendingEmail ? "disabled" : ""}
           />
-
-          <div id="authError" class="inline-error" hidden>
-            Digite um e-mail válido para continuar.
-          </div>
         </div>
 
-        <div class="actions">
-          <button id="authContinue" class="primary-button" type="button">
-            Continuar
-          </button>
+        ${
+          hasPendingEmail
+            ? `
+          <div class="section">
+            <label for="authCode">Código de 8 dígitos</label>
+            <input
+              id="authCode"
+              type="text"
+              inputmode="numeric"
+              maxlength="8"
+              placeholder="12345678"
+            />
+            <div class="inline-error" style="color: var(--muted); margin-top: 10px;">
+              Código enviado para ${params.pendingEmail}
+            </div>
+          </div>
+        `
+            : ""
+        }
 
-          <button id="authBack" class="ghost-button" type="button">
-            Voltar
-          </button>
+        <div class="welcome-actions">
+          ${
+            hasPendingEmail
+              ? `
+            <button id="verifyCode" class="primary-button" type="button">
+              Validar código
+            </button>
+            <button id="changeEmail" class="ghost-button" type="button">
+              Alterar email
+            </button>
+          `
+              : `
+            <button id="requestCode" class="primary-button" type="button">
+              Receber código
+            </button>
+          `
+          }
         </div>
       </div>
     </div>
@@ -52,36 +73,29 @@ export function renderAuthScreen(): string {
 }
 
 export function bindAuthScreen(actions: {
-  onContinue: (email: string) => void;
   onBack: () => void;
+  onRequestCode: (email: string) => void | Promise<void>;
+  onVerifyCode: (code: string) => void | Promise<void>;
+  onChangeEmail: () => void;
 }) {
-  const emailInput = document.getElementById("authEmail") as HTMLInputElement | null;
-  const continueButton = document.getElementById("authContinue");
   const backButton = document.getElementById("authBack");
-  const errorEl = document.getElementById("authError");
+  const requestCodeButton = document.getElementById("requestCode");
+  const verifyCodeButton = document.getElementById("verifyCode");
+  const changeEmailButton = document.getElementById("changeEmail");
+  const emailInput = document.getElementById("authEmail") as HTMLInputElement | null;
+  const codeInput = document.getElementById("authCode") as HTMLInputElement | null;
 
-  function validateEmail(value: string) {
-    return /\S+@\S+\.\S+/.test(value);
-  }
-
-  function submit() {
-    const email = emailInput?.value.trim() || "";
-
-    if (!validateEmail(email)) {
-      if (errorEl) errorEl.hidden = false;
-      return;
-    }
-
-    if (errorEl) errorEl.hidden = true;
-    actions.onContinue(email);
-  }
-
-  continueButton?.addEventListener("click", submit);
   backButton?.addEventListener("click", actions.onBack);
 
-  emailInput?.addEventListener("keydown", (event) => {
-    if (event.key === "Enter") {
-      submit();
-    }
+  requestCodeButton?.addEventListener("click", async () => {
+    const email = emailInput?.value?.trim() ?? "";
+    await actions.onRequestCode(email);
   });
+
+  verifyCodeButton?.addEventListener("click", async () => {
+    const code = codeInput?.value?.trim() ?? "";
+    await actions.onVerifyCode(code);
+  });
+
+  changeEmailButton?.addEventListener("click", actions.onChangeEmail);
 }

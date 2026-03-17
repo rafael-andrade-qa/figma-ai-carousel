@@ -1,3 +1,5 @@
+import type { AuthSessionSnapshot } from "../lib/supabase";
+
 export type AppScreen =
   | "welcome"
   | "auth"
@@ -6,16 +8,18 @@ export type AppScreen =
   | "paywall"
   | "transactions";
 
-export interface AppUser {
+export type AppUser = {
   email: string;
-}
+  authUserId: string;
+};
 
-export interface AppState {
+export type AppState = {
   currentScreen: AppScreen;
   user: AppUser | null;
   credits: number;
-  hasSeenWelcome: boolean;
-}
+  pendingEmail: string | null;
+  session: AuthSessionSnapshot | null;
+};
 
 const STORAGE_KEY = "figma-ai-carousel-ui-state";
 
@@ -23,7 +27,8 @@ const defaultState: AppState = {
   currentScreen: "welcome",
   user: null,
   credits: 0,
-  hasSeenWelcome: false,
+  pendingEmail: null,
+  session: null,
 };
 
 let state: AppState = loadState();
@@ -31,7 +36,10 @@ let state: AppState = loadState();
 function loadState(): AppState {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return defaultState;
+
+    if (!raw) {
+      return defaultState;
+    }
 
     const parsed = JSON.parse(raw) as Partial<AppState>;
 
@@ -40,6 +48,9 @@ function loadState(): AppState {
       ...parsed,
       user: parsed.user ?? null,
       credits: typeof parsed.credits === "number" ? parsed.credits : 0,
+      pendingEmail:
+        typeof parsed.pendingEmail === "string" ? parsed.pendingEmail : null,
+      session: parsed.session ?? null,
     };
   } catch {
     return defaultState;
@@ -66,10 +77,34 @@ export function setScreen(screen: AppScreen) {
   persistState();
 }
 
-export function setUser(email: string) {
+export function setPendingEmail(email: string | null) {
   state = {
     ...state,
-    user: { email },
+    pendingEmail: email ? email.trim().toLowerCase() : null,
+  };
+  persistState();
+}
+
+export function setAuthenticatedSession(session: AuthSessionSnapshot) {
+  state = {
+    ...state,
+    session,
+    user: {
+      email: session.email,
+      authUserId: session.authUserId,
+    },
+    pendingEmail: null,
+  };
+  persistState();
+}
+
+export function clearAuthenticatedSession() {
+  state = {
+    ...state,
+    session: null,
+    user: null,
+    credits: 0,
+    pendingEmail: null,
   };
   persistState();
 }
@@ -86,14 +121,6 @@ export function setCredits(amount: number) {
   state = {
     ...state,
     credits: Math.max(0, amount),
-  };
-  persistState();
-}
-
-export function markWelcomeSeen() {
-  state = {
-    ...state,
-    hasSeenWelcome: true,
   };
   persistState();
 }

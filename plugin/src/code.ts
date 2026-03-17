@@ -7,7 +7,7 @@ import { createCarouselFrames } from "./render/createCarouselFrames";
 import { defaultBranding } from "./render/config/defaultBranding";
 import { requestCarousel } from "./api/backend";
 
-figma.showUI(__html__, { width: 420, height: 520 });
+figma.showUI(__html__, { width: 560, height: 780 });
 
 function getCreditsCost(cards: number) {
   if (cards === 7) return 2;
@@ -24,7 +24,7 @@ figma.ui.onmessage = async (msg: GenerateCarouselMessage) => {
     const prompt = msg.prompt?.trim();
     const cards = typeof msg.cards === "number" ? msg.cards : 5;
     const branding = msg.branding ?? defaultBranding;
-    const userEmail = msg.userEmail?.trim();
+    const accessToken = msg.accessToken?.trim();
 
     if (!prompt) {
       sendError("Prompt vazio.");
@@ -32,53 +32,39 @@ figma.ui.onmessage = async (msg: GenerateCarouselMessage) => {
       return;
     }
 
-    if (!userEmail) {
-      sendError("Usuário não identificado.");
-      figma.notify("Erro de autenticação.");
+    if (!accessToken) {
+      sendError("Sessão inválida. Faça login novamente.");
+      figma.notify("Sessão inválida. Faça login novamente.");
       return;
     }
 
     const creditsCost = getCreditsCost(cards);
 
-    sendStatus("Validando créditos...");
+    sendStatus("Gerando carrossel com IA...");
+    figma.notify(`Gerando carrossel (${creditsCost} crédito(s))...`);
 
-    const data = await requestCarousel({
+    const response = await requestCarousel({
       prompt,
       cards,
       branding,
-      userEmail,
+      accessToken,
     });
 
-    if ("error" in data) {
-      if (data.error === "NO_CREDITS") {
-        figma.ui.postMessage({
-          type: "error",
-          message: "NO_CREDITS",
-        });
+    await createCarouselFrames(response.cards, branding);
 
-        figma.notify("Sem créditos suficientes.");
-        return;
-      }
-
-      throw new Error(data.error);
-    }
-
-    sendStatus(`Gerando ${cards} cards...`);
-
-    await createCarouselFrames(data.cards, branding);
-
-    sendSuccess(`Sucesso! ${data.cards.length} frames criados.`);
+    sendSuccess("Carrossel gerado com sucesso.");
+    figma.notify("Carrossel criado no canvas com sucesso.");
 
     figma.ui.postMessage({
       type: "success",
       message: "Carrossel gerado com sucesso.",
-      creditsUsed: data.creditsUsed ?? creditsCost,
+      creditsUsed: response.creditsUsed ?? creditsCost,
     });
-
-    figma.notify(`Carrossel criado com ${data.cards.length} cards.`);
   } catch (error) {
+    console.error("[PLUGIN] Erro ao gerar carrossel:", error);
+
     const message =
-      error instanceof Error ? error.message : "Erro desconhecido no plugin.";
+      error instanceof Error ? error.message : "Erro desconhecido ao gerar carrossel.";
 
     sendError(message);
     figma.notify("Erro ao gerar carrossel.");

@@ -1,5 +1,10 @@
 import type { CarouselBranding, CarouselTemplate } from "../../types/branding";
-import type { GenerateCarouselMessage, PluginToUiMessage } from "../../types/messages";
+import type {
+  GenerateCarouselMessage,
+  PluginToUiMessage,
+} from "../../types/messages";
+
+import { getState } from "../state";
 
 export function renderDashboardScreen(input: {
   credits: number;
@@ -282,12 +287,19 @@ export function bindDashboardScreen(actions: {
       return;
     }
 
+    const accessToken = getState().session?.accessToken;
+
+    if (!accessToken) {
+      setStatus("Sessão inválida. Faça login novamente.", "error");
+      return;
+    }
+
     const message: GenerateCarouselMessage = {
       type: "generate-carousel",
       prompt,
       cards: selectedCards,
       branding: getBranding(),
-      userEmail: actions.email,
+      accessToken,
     };
 
     pendingCreditsCost = creditsCost;
@@ -376,7 +388,7 @@ export function bindDashboardScreen(actions: {
         const creditsUsed = msg.creditsUsed ?? pendingCreditsCost;
 
         if (creditsUsed > 0) {
-          actions.onSuccessfulGeneration(creditsUsed);
+          void Promise.resolve(actions.onSuccessfulGeneration(creditsUsed));
           pendingCreditsCost = 0;
         }
       }

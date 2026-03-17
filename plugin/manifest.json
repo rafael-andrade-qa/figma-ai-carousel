@@ -7,6 +7,9 @@
   "editorType": ["figma"],
   "networkAccess": {
     "allowedDomains": ["none"],
-    "devAllowedDomains": ["http://localhost:3001"]
+    "devAllowedDomains": [
+      "http://localhost:3001",
+      "https://jhhmtmfpcmcyzlnaoilx.supabase.co"
+    ]
   }
 }
