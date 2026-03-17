@@ -1,11 +1,3 @@
-import {
-  addCredits,
-  consumeCredits,
-  getState,
-  setCredits,
-  setScreen,
-  setUser,
-} from "./state";
 import { bindAuthScreen, renderAuthScreen } from "./screens/auth";
 import {
   bindCreditsGrantedScreen,
@@ -14,8 +6,14 @@ import {
 import { bindDashboardScreen, renderDashboardScreen } from "./screens/dashboard";
 import { bindPaywallScreen, renderPaywallScreen } from "./screens/paywall";
 import { bindWelcomeScreen, renderWelcomeScreen } from "./screens/welcome";
-
-import { requestCredits } from "../api/backend";
+import {
+  consumeCredits,
+  getState,
+  setCredits,
+  setScreen,
+  setUser,
+} from "./state";
+import { requestCredits, requestPurchaseCredits } from "../api/backend";
 
 function getRoot(): HTMLElement | null {
   return document.getElementById("app-root");
@@ -99,10 +97,26 @@ export function renderApp() {
         setScreen("dashboard");
         renderApp();
       },
-      onBuy: (credits) => {
-        addCredits(credits);
-        setScreen("dashboard");
-        renderApp();
+      onBuy: async (packageId) => {
+        try {
+          const email = getState().user?.email;
+
+          if (!email) {
+            console.error("[UI] Usuário não encontrado para compra.");
+            return;
+          }
+
+          const result = await requestPurchaseCredits({
+            userEmail: email,
+            packageId,
+          });
+
+          setCredits(result.credits);
+          setScreen("dashboard");
+          renderApp();
+        } catch (error) {
+          console.error("[UI] Erro ao comprar créditos:", error);
+        }
       },
     });
 

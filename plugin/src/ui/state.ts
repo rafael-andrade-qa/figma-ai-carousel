@@ -73,23 +73,6 @@ export function setUser(email: string) {
   persistState();
 }
 
-export function grantFreeCredits(amount: number) {
-  state = {
-    ...state,
-    credits: amount,
-    hasSeenWelcome: true,
-  };
-  persistState();
-}
-
-export function addCredits(amount: number) {
-  state = {
-    ...state,
-    credits: state.credits + amount,
-  };
-  persistState();
-}
-
 export function consumeCredits(amount: number) {
   state = {
     ...state,

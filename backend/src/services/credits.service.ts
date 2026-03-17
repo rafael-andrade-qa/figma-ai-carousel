@@ -62,3 +62,9 @@ export function refundUserCredits(email: string, amount: number) {
 
   return user;
 }
+
+export function addUserCredits(email: string, amount: number) {
+  const user = ensureUserCredits(email);
+  user.credits += amount;
+  return user;
+}

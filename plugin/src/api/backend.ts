@@ -17,6 +17,15 @@ export type CreditsResponse = {
   credits: number;
 };
 
+export type PurchasePackageId = "starter" | "pro" | "studio";
+
+export type PurchaseCreditsResponse = {
+  email: string;
+  credits: number;
+  purchasedCredits: number;
+  packageId: PurchasePackageId;
+};
+
 export async function requestCarousel(
   input: GenerateCarouselInput
 ): Promise<CarouselResponse | ErrorResponse> {
@@ -62,4 +71,25 @@ export async function requestCredits(userEmail: string): Promise<CreditsResponse
   }
 
   return JSON.parse(rawText) as CreditsResponse;
+}
+
+export async function requestPurchaseCredits(input: {
+  userEmail: string;
+  packageId: PurchasePackageId;
+}): Promise<PurchaseCreditsResponse> {
+  const response = await fetch("http://localhost:3001/credits/purchase", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(input),
+  });
+
+  const rawText = await response.text();
+
+  if (!response.ok) {
+    throw new Error(`Backend retornou ${response.status}: ${rawText}`);
+  }
+
+  return JSON.parse(rawText) as PurchaseCreditsResponse;
 }
