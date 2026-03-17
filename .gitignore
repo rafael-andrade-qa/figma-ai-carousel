@@ -3,3 +3,4 @@
 /plugin/node_modules
 *.json
 /plugin/dist
+/plugin/ui.html
