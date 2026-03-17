@@ -1,13 +1,21 @@
 import { Request, Response } from "express";
 import { addUserCredits, getUserCredits } from "../services/credits.service";
+import { getCreditPackage, listCreditPackages } from "../config/credit-packages";
 
-const CREDIT_PACKAGES = {
-  starter: { credits: 20, label: "Pacote Starter" },
-  pro: { credits: 60, label: "Pacote Pro" },
-  studio: { credits: 150, label: "Pacote Studio" },
-} as const;
+export async function getPurchasePackages(_req: Request, res: Response) {
+  try {
+    return res.json({
+      packages: listCreditPackages(),
+    });
+  } catch (error) {
+    console.error("[BACKEND] Erro na rota GET /credits/purchase/packages:", error);
 
-type PackageId = keyof typeof CREDIT_PACKAGES;
+    return res.status(500).json({
+      error: "Erro ao buscar pacotes de créditos",
+      detail: error instanceof Error ? error.message : "Erro desconhecido",
+    });
+  }
+}
 
 export async function postPurchaseCredits(req: Request, res: Response) {
   try {
@@ -33,26 +41,26 @@ export async function postPurchaseCredits(req: Request, res: Response) {
       });
     }
 
-    if (!(packageId in CREDIT_PACKAGES)) {
+    const selectedPackage = getCreditPackage(packageId);
+
+    if (!selectedPackage) {
       console.log("[BACKEND] pacote inválido:", packageId);
       return res.status(400).json({
         error: "Pacote inválido",
       });
     }
 
-    const selectedPackage = CREDIT_PACKAGES[packageId as PackageId];
-
     console.log(
       `[BACKEND] Adicionando ${selectedPackage.credits} créditos para ${userEmail}`
     );
 
-    addUserCredits(
+    await addUserCredits(
       userEmail,
       selectedPackage.credits,
       `Compra de créditos - ${selectedPackage.label}`
     );
 
-    const user = getUserCredits(userEmail);
+    const user = await getUserCredits(userEmail);
 
     console.log(
       `[BACKEND] Novo saldo de ${user.email}: ${user.credits} créditos`
@@ -62,7 +70,7 @@ export async function postPurchaseCredits(req: Request, res: Response) {
       email: user.email,
       credits: user.credits,
       purchasedCredits: selectedPackage.credits,
-      packageId,
+      packageId: selectedPackage.id,
     });
   } catch (error) {
     console.error("[BACKEND] Erro na rota /credits/purchase:", error);

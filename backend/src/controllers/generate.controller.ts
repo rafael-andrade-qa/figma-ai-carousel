@@ -26,14 +26,14 @@ export async function postGenerate(req: Request, res: Response) {
     const totalCards =
       typeof cards === "number" && cards > 0 && cards <= 10 ? cards : 5;
 
-    const user = ensureUserCredits(userEmail);
+    const user = await ensureUserCredits(userEmail);
     const creditsCost = getCreditsCost(totalCards);
 
     console.log(
       `[BACKEND] Usuário ${user.email} possui ${user.credits} créditos. Custo desta geração: ${creditsCost}`
     );
 
-    const consumeResult = consumeUserCredits(userEmail, totalCards);
+    const consumeResult = await consumeUserCredits(userEmail, totalCards);
 
     if (!consumeResult.ok) {
       console.log(`[BACKEND] Usuário ${user.email} sem créditos suficientes`);
@@ -59,7 +59,7 @@ export async function postGenerate(req: Request, res: Response) {
         creditsLeft: consumeResult.creditsLeft,
       });
     } catch (error) {
-      refundUserCredits(userEmail, consumeResult.creditsUsed);
+      await refundUserCredits(userEmail, consumeResult.creditsUsed);
 
       console.log(
         `[BACKEND] Falha na geração. Créditos estornados para ${user.email}`

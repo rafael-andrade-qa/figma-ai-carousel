@@ -15,7 +15,7 @@ export async function getTransactions(req: Request, res: Response) {
       });
     }
 
-    const transactions = getUserTransactions(userEmail);
+    const transactions = await getUserTransactions(userEmail);
 
     return res.json({
       email: userEmail.trim().toLowerCase(),

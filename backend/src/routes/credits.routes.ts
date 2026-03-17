@@ -1,12 +1,17 @@
+import {
+  getPurchasePackages,
+  postPurchaseCredits,
+} from "../controllers/purchase.controller";
+
 import { Router } from "express";
 import { getCredits } from "../controllers/credits.controller";
 import { getTransactions } from "../controllers/transactions.controller";
-import { postPurchaseCredits } from "../controllers/purchase.controller";
 
 const router = Router();
 
-router.get("/credits", getCredits);
-router.get("/credits/transactions", getTransactions);
-router.post("/credits/purchase", postPurchaseCredits);
+router.get("/", getCredits);
+router.get("/transactions", getTransactions);
+router.get("/purchase/packages", getPurchasePackages);
+router.post("/purchase", postPurchaseCredits);
 
 export default router;

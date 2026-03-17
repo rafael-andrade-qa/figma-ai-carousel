@@ -1,4 +1,7 @@
+import { supabaseAdmin } from "../lib/supabase";
+
 type UserCredits = {
+  id: string;
   email: string;
   credits: number;
 };
@@ -7,7 +10,8 @@ export type CreditTransactionType =
   | "free_trial"
   | "purchase"
   | "usage"
-  | "refund";
+  | "refund"
+  | "manual_adjustment";
 
 export type CreditTransaction = {
   id: string;
@@ -19,52 +23,137 @@ export type CreditTransaction = {
   createdAt: string;
 };
 
-const usersCredits = new Map<string, UserCredits>();
-const usersTransactions = new Map<string, CreditTransaction[]>();
+type EnsureUserCreditAccountRow = {
+  out_user_id: string;
+  out_email: string;
+  out_balance: number;
+};
 
-const FREE_CREDITS_ON_FIRST_USE = 5;
+type ApplyCreditTransactionRow = {
+  out_transaction_id: string;
+  out_user_id: string;
+  out_email: string;
+  out_type: CreditTransactionType;
+  out_amount: number;
+  out_balance_before: number;
+  out_balance_after: number;
+  out_description: string | null;
+  out_source_type: string | null;
+  out_source_id: string | null;
+  out_metadata: Record<string, unknown> | null;
+  out_created_at: string;
+};
+
+type CreditTransactionRow = {
+  id: string;
+  type: CreditTransactionType;
+  amount: number;
+  balance_after: number;
+  description: string | null;
+  created_at: string;
+};
 
 function normalizeEmail(email: string) {
   return email.trim().toLowerCase();
 }
 
-function createTransaction(input: {
-  email: string;
-  type: CreditTransactionType;
-  amount: number;
-  balanceAfter: number;
-  description: string;
-}): CreditTransaction {
+function mapUserCredits(row: EnsureUserCreditAccountRow): UserCredits {
   return {
-    id: `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
-    email: input.email,
-    type: input.type,
-    amount: input.amount,
-    balanceAfter: input.balanceAfter,
-    description: input.description,
-    createdAt: new Date().toISOString(),
+    id: row.out_user_id,
+    email: row.out_email,
+    credits: row.out_balance,
   };
 }
 
-function appendTransaction(input: {
+function mapTransaction(row: {
+  id: string;
   email: string;
   type: CreditTransactionType;
   amount: number;
-  balanceAfter: number;
-  description: string;
-}) {
-  const normalizedEmail = normalizeEmail(input.email);
-  const current = usersTransactions.get(normalizedEmail) ?? [];
+  balance_after: number;
+  description: string | null;
+  created_at: string;
+}): CreditTransaction {
+  return {
+    id: row.id,
+    email: row.email,
+    type: row.type,
+    amount: row.amount,
+    balanceAfter: row.balance_after,
+    description: row.description ?? "",
+    createdAt: row.created_at,
+  };
+}
 
-  const transaction = createTransaction({
-    ...input,
-    email: normalizedEmail,
+async function ensureUserCreditAccount(email: string): Promise<UserCredits> {
+  const normalizedEmail = normalizeEmail(email);
+
+  const { data, error } = await supabaseAdmin.rpc("ensure_user_credit_account", {
+    p_email: normalizedEmail,
   });
 
-  current.unshift(transaction);
-  usersTransactions.set(normalizedEmail, current);
+  if (error) {
+    throw new Error(
+      `Erro ao garantir conta de crédito do usuário: ${error.message}`
+    );
+  }
 
-  return transaction;
+  const row = (data?.[0] ?? null) as EnsureUserCreditAccountRow | null;
+
+  if (!row) {
+    throw new Error("Não foi possível carregar a conta de créditos do usuário.");
+  }
+
+  return mapUserCredits(row);
+}
+
+async function applyCreditTransaction(input: {
+  email: string;
+  type: CreditTransactionType;
+  amount: number;
+  description?: string;
+  sourceType?: string;
+  sourceId?: string;
+  metadata?: Record<string, unknown>;
+}): Promise<CreditTransaction> {
+  const normalizedEmail = normalizeEmail(input.email);
+
+  const { data, error } = await supabaseAdmin.rpc("apply_credit_transaction", {
+    p_email: normalizedEmail,
+    p_type: input.type,
+    p_amount: input.amount,
+    p_description: input.description ?? null,
+    p_source_type: input.sourceType ?? null,
+    p_source_id: input.sourceId ?? null,
+    p_metadata: input.metadata ?? {},
+  });
+
+  if (error) {
+    if (
+      error.message.toLowerCase().includes("insufficient credits") ||
+      error.message.toLowerCase().includes("saldo insuficiente")
+    ) {
+      throw new Error("NO_CREDITS");
+    }
+
+    throw new Error(`Erro ao aplicar transação de crédito: ${error.message}`);
+  }
+
+  const row = (data?.[0] ?? null) as ApplyCreditTransactionRow | null;
+
+  if (!row) {
+    throw new Error("A transação de crédito não retornou dados.");
+  }
+
+  return mapTransaction({
+    id: row.out_transaction_id,
+    email: row.out_email,
+    type: row.out_type,
+    amount: row.out_amount,
+    balance_after: row.out_balance_after,
+    description: row.out_description,
+    created_at: row.out_created_at,
+  });
 }
 
 export function getCreditsCost(cards: number) {
@@ -72,45 +161,62 @@ export function getCreditsCost(cards: number) {
   return 1;
 }
 
-export function ensureUserCredits(email: string) {
+export async function ensureUserCredits(email: string): Promise<UserCredits> {
   const normalizedEmail = normalizeEmail(email);
 
-  if (!usersCredits.has(normalizedEmail)) {
-    usersCredits.set(normalizedEmail, {
-      email: normalizedEmail,
-      credits: FREE_CREDITS_ON_FIRST_USE,
-    });
+  const { error: grantError } = await supabaseAdmin.rpc("grant_free_trial_once", {
+    p_email: normalizedEmail,
+    p_amount: 5,
+  });
 
-    appendTransaction({
-      email: normalizedEmail,
-      type: "free_trial",
-      amount: FREE_CREDITS_ON_FIRST_USE,
-      balanceAfter: FREE_CREDITS_ON_FIRST_USE,
-      description: "Créditos grátis de boas-vindas",
-    });
+  if (grantError) {
+    throw new Error(`Erro ao conceder free trial: ${grantError.message}`);
   }
 
-  return usersCredits.get(normalizedEmail)!;
+  return ensureUserCreditAccount(normalizedEmail);
 }
 
-export function getUserCredits(email: string) {
+export async function getUserCredits(email: string): Promise<UserCredits> {
   return ensureUserCredits(email);
 }
 
-export function getUserTransactions(email: string) {
-  const user = ensureUserCredits(email);
-  return usersTransactions.get(user.email) ?? [];
+export async function getUserTransactions(
+  email: string
+): Promise<CreditTransaction[]> {
+  const user = await ensureUserCredits(email);
+
+  const { data, error } = await supabaseAdmin
+    .from("credit_transactions")
+    .select("id, type, amount, balance_after, description, created_at")
+    .eq("user_id", user.id)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    throw new Error(`Erro ao buscar transações: ${error.message}`);
+  }
+
+  const rows = (data ?? []) as CreditTransactionRow[];
+
+  return rows.map((row) =>
+    mapTransaction({
+      ...row,
+      email: user.email,
+    })
+  );
 }
 
-export function hasEnoughCredits(email: string, cards: number) {
-  const user = ensureUserCredits(email);
+export async function hasEnoughCredits(
+  email: string,
+  cards: number
+): Promise<boolean> {
+  const user = await ensureUserCredits(email);
   const cost = getCreditsCost(cards);
 
   return user.credits >= cost;
 }
 
-export function consumeUserCredits(email: string, cards: number) {
-  const user = ensureUserCredits(email);
+export async function consumeUserCredits(email: string, cards: number) {
+  const user = await ensureUserCredits(email);
   const cost = getCreditsCost(cards);
 
   if (user.credits < cost) {
@@ -120,49 +226,92 @@ export function consumeUserCredits(email: string, cards: number) {
     };
   }
 
-  user.credits -= cost;
+  try {
+    const transaction = await applyCreditTransaction({
+      email: user.email,
+      type: "usage",
+      amount: -cost,
+      description: `Consumo de créditos para geração de carrossel com ${cards} cards`,
+      sourceType: "generation",
+      sourceId: `generate-${Date.now()}`,
+      metadata: {
+        cards,
+        cost,
+      },
+    });
 
-  appendTransaction({
-    email: user.email,
-    type: "usage",
-    amount: -cost,
-    balanceAfter: user.credits,
-    description: `Consumo de créditos para geração de carrossel com ${cards} cards`,
+    return {
+      ok: true as const,
+      creditsUsed: cost,
+      creditsLeft: transaction.balanceAfter,
+    };
+  } catch (error) {
+    if (error instanceof Error && error.message === "NO_CREDITS") {
+      return {
+        ok: false as const,
+        error: "NO_CREDITS" as const,
+      };
+    }
+
+    throw error;
+  }
+}
+
+export async function refundUserCredits(email: string, amount: number) {
+  if (amount <= 0) {
+    throw new Error("Refund amount must be greater than zero");
+  }
+
+  await ensureUserCredits(email);
+
+  const transaction = await applyCreditTransaction({
+    email,
+    type: "refund",
+    amount,
+    description: "Estorno de créditos por falha na geração",
+    sourceType: "generation_refund",
+    sourceId: `refund-${Date.now()}`,
+    metadata: {
+      refundedAmount: amount,
+    },
   });
 
   return {
-    ok: true as const,
-    creditsUsed: cost,
-    creditsLeft: user.credits,
+    email: transaction.email,
+    credits: transaction.balanceAfter,
   };
 }
 
-export function refundUserCredits(email: string, amount: number) {
-  const user = ensureUserCredits(email);
-  user.credits += amount;
+export async function addUserCredits(
+  email: string,
+  amount: number,
+  description?: string,
+  options?: {
+    sourceType?: string;
+    sourceId?: string;
+    metadata?: Record<string, unknown>;
+  }
+) {
+  if (amount <= 0) {
+    throw new Error("Purchase amount must be greater than zero");
+  }
 
-  appendTransaction({
-    email: user.email,
-    type: "refund",
-    amount,
-    balanceAfter: user.credits,
-    description: "Estorno de créditos por falha na geração",
-  });
+  await ensureUserCredits(email);
 
-  return user;
-}
-
-export function addUserCredits(email: string, amount: number, description?: string) {
-  const user = ensureUserCredits(email);
-  user.credits += amount;
-
-  appendTransaction({
-    email: user.email,
+  const transaction = await applyCreditTransaction({
+    email,
     type: "purchase",
     amount,
-    balanceAfter: user.credits,
     description: description ?? "Compra de créditos",
+    sourceType: options?.sourceType ?? "purchase_mock",
+    sourceId: options?.sourceId ?? `purchase-${Date.now()}`,
+    metadata: options?.metadata ?? {
+      purchasedAmount: amount,
+    },
   });
 
-  return user;
+  return {
+    email: transaction.email,
+    credits: transaction.balanceAfter,
+  };
 }

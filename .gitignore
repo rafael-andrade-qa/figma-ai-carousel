@@ -4,3 +4,5 @@
 *.json
 /plugin/dist
 /plugin/ui.html
+/scripts/*
+*.md

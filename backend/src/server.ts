@@ -1,23 +1,35 @@
 import "dotenv/config";
 
+import billingRoutes from "./routes/billing.routes";
 import cors from "cors";
 import creditsRoutes from "./routes/credits.routes";
+import dotenv from "dotenv";
 import express from "express";
 import generateRoutes from "./routes/generate.routes";
+
+dotenv.config();
 
 const app = express();
 
 app.use(cors());
+
+app.post(
+  "/billing/webhooks/stripe",
+  express.raw({ type: "application/json" })
+);
+
 app.use(express.json());
-app.use(generateRoutes);
-app.use(creditsRoutes);
 
 app.get("/health", (_req, res) => {
-  res.json({ ok: true, message: "Backend rodando" });
+  return res.json({ ok: true });
 });
 
-const port = process.env.PORT || 3001;
+app.use("/credits", creditsRoutes);
+app.use("/billing", billingRoutes);
+app.use("/", generateRoutes);
 
-app.listen(port, () => {
-  console.log(`Servidor rodando em http://localhost:${port}`);
+const PORT = Number(process.env.PORT) || 3001;
+
+app.listen(PORT, () => {
+  console.log(`Servidor rodando em http://localhost:${PORT}`);
 });

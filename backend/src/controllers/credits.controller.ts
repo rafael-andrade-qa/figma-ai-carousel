@@ -15,7 +15,7 @@ export async function getCredits(req: Request, res: Response) {
       });
     }
 
-    const user = getUserCredits(userEmail);
+    const user = await getUserCredits(userEmail);
 
     return res.json({
       email: user.email,
