@@ -6,6 +6,7 @@ import creditsRoutes from "./routes/credits.routes";
 import dotenv from "dotenv";
 import express from "express";
 import generateRoutes from "./routes/generate.routes";
+import { postStripeWebhook } from "./controllers/billing.controller";
 
 dotenv.config();
 
@@ -15,7 +16,8 @@ app.use(cors());
 
 app.post(
   "/billing/webhooks/stripe",
-  express.raw({ type: "application/json" })
+  express.raw({ type: "application/json" }),
+  postStripeWebhook
 );
 
 app.use(express.json());

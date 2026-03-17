@@ -207,7 +207,10 @@ async function hasGrantedCreditsForStripeSession(stripeCheckoutSessionId: string
 }
 
 export async function handleStripeEvent(event: Stripe.Event) {
+  console.log("[BACKEND] Iniciando processamento do evento Stripe:", event.type, event.id);
+
   if (await hasProcessedStripeEvent(event.id)) {
+    console.log("[BACKEND] Evento Stripe já processado:", event.id);
     return {
       ok: true,
       duplicated: true,
@@ -222,6 +225,13 @@ export async function handleStripeEvent(event: Stripe.Event) {
     const packageId = session.metadata?.packageId;
     const credits = Number(session.metadata?.credits ?? 0);
 
+    console.log("[BACKEND] checkout.session.completed metadata:", {
+      stripeCheckoutSessionId,
+      userEmail,
+      packageId,
+      credits,
+    });
+
     if (!stripeCheckoutSessionId || !userEmail || !packageId || !credits) {
       throw new Error("Evento checkout.session.completed sem metadata suficiente.");
     }
@@ -234,11 +244,15 @@ export async function handleStripeEvent(event: Stripe.Event) {
       );
     }
 
+    console.log("[BACKEND] Checkout local encontrado:", localCheckout);
+
     const alreadyGranted = await hasGrantedCreditsForStripeSession(
       stripeCheckoutSessionId
     );
 
     if (!alreadyGranted) {
+      console.log("[BACKEND] Concedendo créditos para sessão Stripe:", stripeCheckoutSessionId);
+
       await addUserCredits(
         userEmail,
         credits,
@@ -253,6 +267,8 @@ export async function handleStripeEvent(event: Stripe.Event) {
           },
         }
       );
+    } else {
+      console.log("[BACKEND] Créditos já haviam sido concedidos para essa sessão.");
     }
 
     await markCheckoutStatus({
@@ -264,7 +280,11 @@ export async function handleStripeEvent(event: Stripe.Event) {
           : null,
     });
 
+    console.log("[BACKEND] Checkout marcado como pago:", stripeCheckoutSessionId);
+
     await markStripeEventProcessed(event);
+
+    console.log("[BACKEND] Evento Stripe registrado:", event.id);
 
     return {
       ok: true,
@@ -295,6 +315,8 @@ export async function handleStripeEvent(event: Stripe.Event) {
   }
 
   await markStripeEventProcessed(event);
+
+  console.log("[BACKEND] Evento Stripe ignorado, mas registrado:", event.type);
 
   return {
     ok: true,

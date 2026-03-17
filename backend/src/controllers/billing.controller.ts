@@ -51,16 +51,29 @@ export async function postCreateCheckoutSession(req: Request, res: Response) {
 
 export async function postStripeWebhook(req: Request, res: Response) {
   try {
+    console.log("[BACKEND] POST /billing/webhooks/stripe recebido");
+
     const signature = req.headers["stripe-signature"];
 
     if (!signature || typeof signature !== "string") {
+      console.error("[BACKEND] Webhook sem stripe-signature");
       return res.status(400).send("Missing stripe-signature header");
     }
 
     const rawBody = req.body as Buffer;
+
+    if (!Buffer.isBuffer(rawBody)) {
+      console.error("[BACKEND] req.body do webhook não é Buffer");
+      return res.status(400).send("Invalid webhook body");
+    }
+
     const event = constructStripeEvent(rawBody, signature);
 
+    console.log("[BACKEND] Evento Stripe recebido:", event.type, event.id);
+
     const result = await handleStripeEvent(event);
+
+    console.log("[BACKEND] Resultado do processamento do webhook:", result);
 
     return res.json(result);
   } catch (error) {
