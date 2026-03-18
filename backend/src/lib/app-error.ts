@@ -11,7 +11,8 @@ export type AppErrorCode =
   | "BILLING_FAILED"
   | "WEBHOOK_INVALID"
   | "INTERNAL_ERROR"
-  | "USER_NOT_FOUND";
+  | "USER_NOT_FOUND"
+  | "RATE_LIMITED";
 
 export class AppError extends Error {
   code: AppErrorCode;
@@ -152,6 +153,15 @@ export function internalError(detail?: string) {
     code: "INTERNAL_ERROR",
     message: "Ocorreu um erro interno.",
     status: 500,
+    detail,
+  });
+}
+
+export function rateLimited(detail?: string) {
+  return new AppError({
+    code: "RATE_LIMITED",
+    message: "Muitas requisições em sequência. Tente novamente em instantes.",
+    status: 429,
     detail,
   });
 }
