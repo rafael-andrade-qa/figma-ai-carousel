@@ -19,7 +19,17 @@ type CheckoutSessionRow = {
 };
 
 function getAppUrl() {
-  return process.env.APP_URL || "http://localhost:3001";
+  const value = process.env.APP_URL;
+
+  if (!value) {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error("Missing APP_URL environment variable");
+    }
+
+    return "http://localhost:3001";
+  }
+
+  return value;
 }
 
 function getWebhookSecret() {

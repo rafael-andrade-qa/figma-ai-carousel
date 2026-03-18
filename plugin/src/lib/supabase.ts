@@ -3,13 +3,12 @@ import {
   type AuthChangeEvent,
   type Session,
 } from "@supabase/supabase-js";
+import { frontendEnv, validateFrontendEnv } from "../config/env";
 
-const SUPABASE_URL = "https://jhhmtmfpcmcyzlnaoilx.supabase.co";
-const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_5_emVeYAb9L1wYr9YK_lrw_2M5xicMf";
+validateFrontendEnv();
 
-if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
-  throw new Error("Supabase config ausente no frontend do plugin.");
-}
+const SUPABASE_URL = frontendEnv.supabaseUrl;
+const SUPABASE_PUBLISHABLE_KEY = frontendEnv.supabasePublishableKey;
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: {

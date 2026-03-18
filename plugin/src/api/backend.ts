@@ -1,12 +1,17 @@
+import { frontendEnv, validateFrontendEnv } from "../config/env";
+
 import type { CarouselBranding } from "../types/branding";
 import type { CarouselResponse } from "../types/carousel";
 
 type ErrorResponse = {
   error: string;
+  message?: string;
   detail?: string;
 };
 
-const BACKEND_URL = "http://localhost:3001";
+validateFrontendEnv();
+
+const BACKEND_URL = frontendEnv.backendUrl.replace(/\/$/, "");
 
 export type CreditsResponse = {
   email: string;
@@ -92,10 +97,13 @@ async function authorizedFetch(
       parsed = null;
     }
 
+    const errorCode = parsed?.error ?? "UNKNOWN_ERROR";
+    const message = parsed?.message ?? rawText ?? "Erro desconhecido";
     const detail = parsed?.detail ? ` - ${parsed.detail}` : "";
-    const message = parsed?.error ?? rawText ?? "Erro desconhecido";
 
-    throw new Error(`Backend retornou ${response.status}: ${message}${detail}`);
+    throw new Error(
+      `Backend retornou ${response.status}: ${errorCode} - ${message}${detail}`
+    );
   }
 
   return rawText;
@@ -104,14 +112,18 @@ async function authorizedFetch(
 export async function requestCarousel(
   input: GenerateCarouselInput
 ): Promise<CarouselResponse> {
-  const rawText = await authorizedFetch(`${BACKEND_URL}/generate`, input.accessToken, {
-    method: "POST",
-    body: JSON.stringify({
-      prompt: input.prompt,
-      cards: input.cards,
-      branding: input.branding,
-    }),
-  });
+  const rawText = await authorizedFetch(
+    `${BACKEND_URL}/generate`,
+    input.accessToken,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        prompt: input.prompt,
+        cards: input.cards,
+        branding: input.branding,
+      }),
+    }
+  );
 
   const data = JSON.parse(rawText) as CarouselResponse;
 
