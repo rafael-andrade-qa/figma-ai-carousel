@@ -22,12 +22,22 @@ function parseAllowedOrigins() {
 }
 
 function isOriginAllowed(origin: string | undefined, allowedOrigins: string[]) {
+  const allowNullOrigin = process.env.CORS_ALLOW_NULL_ORIGIN === "true";
+
   if (!origin) {
     return true;
   }
 
+  if (origin === "null") {
+    return allowNullOrigin;
+  }
+
   if (allowedOrigins.length === 0) {
-    return origin.startsWith("http://localhost:") || origin.startsWith("https://localhost:");
+    return (
+      origin.startsWith("http://localhost:") ||
+      origin.startsWith("https://localhost:") ||
+      (allowNullOrigin && origin === "null")
+    );
   }
 
   return allowedOrigins.includes(origin);
@@ -47,6 +57,7 @@ app.use(
         logWarn("CORS bloqueado para origin não permitida", {
           origin,
           allowedOrigins,
+          allowNullOrigin: process.env.CORS_ALLOW_NULL_ORIGIN === "true",
         });
 
         callback(new Error("Not allowed by CORS"));
@@ -106,6 +117,7 @@ app.listen(PORT, () => {
     port: PORT,
     env: process.env.NODE_ENV || "development",
     allowedOrigins,
+    allowNullOrigin: process.env.CORS_ALLOW_NULL_ORIGIN === "true",
     healthUrl: `http://localhost:${PORT}/health`,
   });
 });

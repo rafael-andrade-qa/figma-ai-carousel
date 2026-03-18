@@ -69,16 +69,41 @@ type GenerateCarouselInput = {
   accessToken: string;
 };
 
+function normalizeHeaders(initHeaders?: RequestInit["headers"]): Record<string, string> {
+  const normalized: Record<string, string> = {};
+
+  if (!initHeaders) {
+    return normalized;
+  }
+
+  if (Array.isArray(initHeaders)) {
+    for (const [key, value] of initHeaders) {
+      normalized[key] = value;
+    }
+
+    return normalized;
+  }
+
+  if (typeof initHeaders === "object") {
+    for (const [key, value] of Object.entries(initHeaders as Record<string, string>)) {
+      normalized[key] = value;
+    }
+  }
+
+  return normalized;
+}
+
 async function authorizedFetch(
   input: string,
   accessToken: string,
   init?: RequestInit
 ) {
-  const headers = new Headers(init?.headers ?? {});
-  headers.set("Authorization", `Bearer ${accessToken}`);
+  const headers = normalizeHeaders(init?.headers);
 
-  if (init?.body && !headers.has("Content-Type")) {
-    headers.set("Content-Type", "application/json");
+  headers.Authorization = `Bearer ${accessToken}`;
+
+  if (init?.body && !headers["Content-Type"] && !headers["content-type"]) {
+    headers["Content-Type"] = "application/json";
   }
 
   const response = await fetch(input, {
