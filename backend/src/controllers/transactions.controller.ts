@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+import { authRequired, sendAppError, toAppError } from "../lib/app-error";
 import { logError, logInfo, logWarn } from "../lib/logger";
 
 import { getUserTransactionsByUserId } from "../services/credits.service";
@@ -17,9 +18,7 @@ export async function getTransactions(req: Request, res: Response) {
         method: req.method,
       });
 
-      return res.status(401).json({
-        error: "AUTH_REQUIRED",
-      });
+      return sendAppError(res, authRequired());
     }
 
     const transactions = await getUserTransactionsByUserId(req.user.appUserId);
@@ -42,9 +41,13 @@ export async function getTransactions(req: Request, res: Response) {
       user: req.user,
     });
 
-    return res.status(500).json({
-      error: "Erro ao buscar transações",
-      detail: error instanceof Error ? error.message : "Erro desconhecido",
-    });
+    return sendAppError(
+      res,
+      toAppError(error, {
+        code: "INTERNAL_ERROR",
+        message: "Não foi possível buscar as transações do usuário.",
+        status: 500,
+      })
+    );
   }
 }

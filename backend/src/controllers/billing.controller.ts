@@ -1,5 +1,13 @@
 import { Request, Response } from "express";
 import {
+  authRequired,
+  billingFailed,
+  invalidInput,
+  invalidPackage,
+  sendAppError,
+  webhookInvalid,
+} from "../lib/app-error";
+import {
   constructStripeEvent,
   createStripeCheckoutSession,
   handleStripeEvent,
@@ -21,9 +29,7 @@ export async function postCreateCheckoutSession(req: Request, res: Response) {
         method: req.method,
       });
 
-      return res.status(401).json({
-        error: "AUTH_REQUIRED",
-      });
+      return sendAppError(res, authRequired());
     }
 
     const { packageId } = req.body as {
@@ -36,9 +42,7 @@ export async function postCreateCheckoutSession(req: Request, res: Response) {
         body: req.body,
       });
 
-      return res.status(400).json({
-        error: "packageId é obrigatório",
-      });
+      return sendAppError(res, invalidInput("packageId é obrigatório."));
     }
 
     const result = await createStripeCheckoutSession({
@@ -64,15 +68,13 @@ export async function postCreateCheckoutSession(req: Request, res: Response) {
     });
 
     if (error instanceof Error && error.message === "INVALID_PACKAGE") {
-      return res.status(400).json({
-        error: "Pacote inválido",
-      });
+      return sendAppError(res, invalidPackage(error.message));
     }
 
-    return res.status(500).json({
-      error: "Erro ao criar sessão de checkout",
-      detail: error instanceof Error ? error.message : "Erro desconhecido",
-    });
+    return sendAppError(
+      res,
+      billingFailed(error instanceof Error ? error.message : "Erro desconhecido")
+    );
   }
 }
 
@@ -91,7 +93,7 @@ export async function postStripeWebhook(req: Request, res: Response) {
         method: req.method,
       });
 
-      return res.status(400).send("Missing stripe-signature header");
+      return sendAppError(res, webhookInvalid("Missing stripe-signature header"));
     }
 
     const rawBody = req.body as Buffer;
@@ -102,7 +104,7 @@ export async function postStripeWebhook(req: Request, res: Response) {
         method: req.method,
       });
 
-      return res.status(400).send("Invalid webhook body");
+      return sendAppError(res, webhookInvalid("Invalid webhook body"));
     }
 
     const event = constructStripeEvent(rawBody, signature);
@@ -127,8 +129,9 @@ export async function postStripeWebhook(req: Request, res: Response) {
       method: req.method,
     });
 
-    return res.status(400).send(
-      error instanceof Error ? error.message : "Webhook error"
+    return sendAppError(
+      res,
+      webhookInvalid(error instanceof Error ? error.message : "Webhook error")
     );
   }
 }

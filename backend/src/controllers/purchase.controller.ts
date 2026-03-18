@@ -3,6 +3,13 @@ import {
   addUserCreditsByUserId,
   getUserCreditsByUserId,
 } from "../services/credits.service";
+import {
+  authRequired,
+  invalidInput,
+  invalidPackage,
+  sendAppError,
+  toAppError,
+} from "../lib/app-error";
 import { getCreditPackage, listCreditPackages } from "../config/credit-packages";
 import { logError, logInfo, logWarn } from "../lib/logger";
 
@@ -14,10 +21,14 @@ export async function getPurchasePackages(_req: Request, res: Response) {
   } catch (error) {
     logError("Erro na rota GET /credits/purchase/packages", error);
 
-    return res.status(500).json({
-      error: "Erro ao buscar pacotes de créditos",
-      detail: error instanceof Error ? error.message : "Erro desconhecido",
-    });
+    return sendAppError(
+      res,
+      toAppError(error, {
+        code: "INTERNAL_ERROR",
+        message: "Não foi possível buscar os pacotes de créditos.",
+        status: 500,
+      })
+    );
   }
 }
 
@@ -36,9 +47,7 @@ export async function postPurchaseCredits(req: Request, res: Response) {
         method: req.method,
       });
 
-      return res.status(401).json({
-        error: "AUTH_REQUIRED",
-      });
+      return sendAppError(res, authRequired());
     }
 
     const { packageId } = req.body as {
@@ -51,9 +60,7 @@ export async function postPurchaseCredits(req: Request, res: Response) {
         body: req.body,
       });
 
-      return res.status(400).json({
-        error: "packageId é obrigatório",
-      });
+      return sendAppError(res, invalidInput("packageId é obrigatório."));
     }
 
     const selectedPackage = getCreditPackage(packageId);
@@ -64,9 +71,7 @@ export async function postPurchaseCredits(req: Request, res: Response) {
         packageId,
       });
 
-      return res.status(400).json({
-        error: "Pacote inválido",
-      });
+      return sendAppError(res, invalidPackage(packageId));
     }
 
     const userId = req.user.appUserId;
@@ -109,9 +114,13 @@ export async function postPurchaseCredits(req: Request, res: Response) {
       user: req.user,
     });
 
-    return res.status(500).json({
-      error: "Erro ao comprar créditos",
-      detail: error instanceof Error ? error.message : "Erro desconhecido",
-    });
+    return sendAppError(
+      res,
+      toAppError(error, {
+        code: "BILLING_FAILED",
+        message: "Não foi possível concluir a compra de créditos.",
+        status: 500,
+      })
+    );
   }
 }

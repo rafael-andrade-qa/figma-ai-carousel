@@ -53,10 +53,6 @@ type CreditTransactionRow = {
   created_at: string;
 };
 
-function normalizeEmail(email: string) {
-  return email.trim().toLowerCase();
-}
-
 function mapTransaction(row: {
   id: string;
   email: string;
@@ -393,7 +389,7 @@ export async function addUserCreditsByUserId(
     type: "purchase",
     amount,
     description: description ?? "Compra de créditos",
-    sourceType: options?.sourceType ?? "purchase_mock",
+    sourceType: options?.sourceType ?? "purchase_manual",
     sourceId: options?.sourceId ?? `purchase-${Date.now()}`,
     metadata: options?.metadata ?? {
       purchasedAmount: amount,
@@ -404,77 +400,4 @@ export async function addUserCreditsByUserId(
     email: transaction.email,
     credits: transaction.balanceAfter,
   };
-}
-
-/**
- * Compat layer temporária por email.
- * Mantida para migrarmos controllers/services em etapas sem quebrar o sistema.
- */
-async function getUserIdByEmail(email: string): Promise<string> {
-  const normalizedEmail = normalizeEmail(email);
-
-  const { data, error } = await supabaseAdmin
-    .from("users")
-    .select("id")
-    .eq("email", normalizedEmail)
-    .maybeSingle();
-
-  if (error) {
-    throw new Error(`Erro ao buscar userId por email: ${error.message}`);
-  }
-
-  if (!data?.id) {
-    throw new Error("USER_NOT_FOUND");
-  }
-
-  return data.id;
-}
-
-export async function ensureUserCredits(email: string): Promise<UserCredits> {
-  const userId = await getUserIdByEmail(email);
-  return ensureUserCreditsByUserId(userId);
-}
-
-export async function getUserCredits(email: string): Promise<UserCredits> {
-  const userId = await getUserIdByEmail(email);
-  return getUserCreditsByUserId(userId);
-}
-
-export async function getUserTransactions(
-  email: string
-): Promise<CreditTransaction[]> {
-  const userId = await getUserIdByEmail(email);
-  return getUserTransactionsByUserId(userId);
-}
-
-export async function hasEnoughCredits(
-  email: string,
-  cards: number
-): Promise<boolean> {
-  const userId = await getUserIdByEmail(email);
-  return hasEnoughCreditsByUserId(userId, cards);
-}
-
-export async function consumeUserCredits(email: string, cards: number) {
-  const userId = await getUserIdByEmail(email);
-  return consumeUserCreditsByUserId(userId, cards);
-}
-
-export async function refundUserCredits(email: string, amount: number) {
-  const userId = await getUserIdByEmail(email);
-  return refundUserCreditsByUserId(userId, amount);
-}
-
-export async function addUserCredits(
-  email: string,
-  amount: number,
-  description?: string,
-  options?: {
-    sourceType?: string;
-    sourceId?: string;
-    metadata?: Record<string, unknown>;
-  }
-) {
-  const userId = await getUserIdByEmail(email);
-  return addUserCreditsByUserId(userId, amount, description, options);
 }

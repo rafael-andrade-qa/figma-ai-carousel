@@ -1,5 +1,13 @@
 import { Request, Response } from "express";
 import {
+  authRequired,
+  generationFailed,
+  invalidInput,
+  noCredits,
+  sendAppError,
+  toAppError,
+} from "../lib/app-error";
+import {
   consumeUserCreditsByUserId,
   ensureUserCreditsByUserId,
   getCreditsCost,
@@ -29,9 +37,7 @@ export async function postGenerate(req: Request, res: Response) {
         generationId,
       });
 
-      return res.status(401).json({
-        error: "AUTH_REQUIRED",
-      });
+      return sendAppError(res, authRequired());
     }
 
     const { prompt, cards } = req.body as {
@@ -46,9 +52,7 @@ export async function postGenerate(req: Request, res: Response) {
         body: req.body,
       });
 
-      return res.status(400).json({
-        error: "Prompt é obrigatório",
-      });
+      return sendAppError(res, invalidInput("Prompt é obrigatório."));
     }
 
     const totalCards =
@@ -90,9 +94,7 @@ export async function postGenerate(req: Request, res: Response) {
         creditsCost,
       });
 
-      return res.status(402).json({
-        error: "NO_CREDITS",
-      });
+      return sendAppError(res, noCredits());
     }
 
     try {
@@ -138,7 +140,10 @@ export async function postGenerate(req: Request, res: Response) {
         refundedCredits: consumeResult.creditsUsed,
       });
 
-      throw error;
+      return sendAppError(
+        res,
+        generationFailed(error instanceof Error ? error.message : "Erro desconhecido")
+      );
     }
   } catch (error) {
     logError("Erro na rota /generate", error, {
@@ -148,9 +153,13 @@ export async function postGenerate(req: Request, res: Response) {
       user: req.user,
     });
 
-    return res.status(500).json({
-      error: "Erro ao gerar carrossel",
-      detail: error instanceof Error ? error.message : "Erro desconhecido",
-    });
+    return sendAppError(
+      res,
+      toAppError(error, {
+        code: "GENERATION_FAILED",
+        message: "Não foi possível gerar o carrossel.",
+        status: 500,
+      })
+    );
   }
 }

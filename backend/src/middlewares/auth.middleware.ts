@@ -1,4 +1,5 @@
 import { NextFunction, Request, Response } from "express";
+import { authInternal, authInvalid, authRequired, sendAppError } from "../lib/app-error";
 import {
   getOrCreateAuthenticatedAppUser,
   verifyAccessToken,
@@ -35,9 +36,7 @@ export async function requireAuth(
         method: req.method,
       });
 
-      return res.status(401).json({
-        error: "AUTH_REQUIRED",
-      });
+      return sendAppError(res, authRequired());
     }
 
     const verified = await verifyAccessToken(accessToken);
@@ -74,14 +73,9 @@ export async function requireAuth(
       message === "AUTH_INVALID_TOKEN" ||
       message === "AUTH_EMAIL_NOT_AVAILABLE"
     ) {
-      return res.status(401).json({
-        error: "AUTH_INVALID",
-      });
+      return sendAppError(res, authInvalid(message));
     }
 
-    return res.status(500).json({
-      error: "AUTH_INTERNAL_ERROR",
-      detail: message,
-    });
+    return sendAppError(res, authInternal(message));
   }
 }
