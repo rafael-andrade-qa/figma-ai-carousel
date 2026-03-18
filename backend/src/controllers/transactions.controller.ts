@@ -1,26 +1,46 @@
 import { Request, Response } from "express";
+import { logError, logInfo, logWarn } from "../lib/logger";
 
-import { getUserTransactions } from "../services/credits.service";
+import { getUserTransactionsByUserId } from "../services/credits.service";
 
 export async function getTransactions(req: Request, res: Response) {
   try {
-    console.log("[BACKEND] GET /credits/transactions recebido");
-    console.log("[BACKEND] user:", req.user);
+    logInfo("GET /credits/transactions recebido", {
+      path: req.path,
+      method: req.method,
+      user: req.user,
+    });
 
     if (!req.user) {
+      logWarn("GET /credits/transactions sem autenticação", {
+        path: req.path,
+        method: req.method,
+      });
+
       return res.status(401).json({
         error: "AUTH_REQUIRED",
       });
     }
 
-    const transactions = await getUserTransactions(req.user.email);
+    const transactions = await getUserTransactionsByUserId(req.user.appUserId);
+
+    logInfo("Transações carregadas com sucesso", {
+      appUserId: req.user.appUserId,
+      authUserId: req.user.authUserId,
+      email: req.user.email,
+      transactionsCount: transactions.length,
+    });
 
     return res.json({
       email: req.user.email,
       transactions,
     });
   } catch (error) {
-    console.error("[BACKEND] Erro na rota /credits/transactions:", error);
+    logError("Erro na rota /credits/transactions", error, {
+      path: req.path,
+      method: req.method,
+      user: req.user,
+    });
 
     return res.status(500).json({
       error: "Erro ao buscar transações",

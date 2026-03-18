@@ -1,6 +1,10 @@
 import { Request, Response } from "express";
-import { addUserCredits, getUserCredits } from "../services/credits.service";
+import {
+  addUserCreditsByUserId,
+  getUserCreditsByUserId,
+} from "../services/credits.service";
 import { getCreditPackage, listCreditPackages } from "../config/credit-packages";
+import { logError, logInfo, logWarn } from "../lib/logger";
 
 export async function getPurchasePackages(_req: Request, res: Response) {
   try {
@@ -8,7 +12,7 @@ export async function getPurchasePackages(_req: Request, res: Response) {
       packages: listCreditPackages(),
     });
   } catch (error) {
-    console.error("[BACKEND] Erro na rota GET /credits/purchase/packages:", error);
+    logError("Erro na rota GET /credits/purchase/packages", error);
 
     return res.status(500).json({
       error: "Erro ao buscar pacotes de créditos",
@@ -19,11 +23,19 @@ export async function getPurchasePackages(_req: Request, res: Response) {
 
 export async function postPurchaseCredits(req: Request, res: Response) {
   try {
-    console.log("[BACKEND] POST /credits/purchase recebido");
-    console.log("[BACKEND] body:", req.body);
-    console.log("[BACKEND] user:", req.user);
+    logInfo("POST /credits/purchase recebido", {
+      path: req.path,
+      method: req.method,
+      body: req.body,
+      user: req.user,
+    });
 
     if (!req.user) {
+      logWarn("POST /credits/purchase sem autenticação", {
+        path: req.path,
+        method: req.method,
+      });
+
       return res.status(401).json({
         error: "AUTH_REQUIRED",
       });
@@ -34,7 +46,11 @@ export async function postPurchaseCredits(req: Request, res: Response) {
     };
 
     if (!packageId || typeof packageId !== "string") {
-      console.log("[BACKEND] packageId inválido");
+      logWarn("POST /credits/purchase com packageId inválido", {
+        appUserId: req.user.appUserId,
+        body: req.body,
+      });
+
       return res.status(400).json({
         error: "packageId é obrigatório",
       });
@@ -43,29 +59,42 @@ export async function postPurchaseCredits(req: Request, res: Response) {
     const selectedPackage = getCreditPackage(packageId);
 
     if (!selectedPackage) {
-      console.log("[BACKEND] pacote inválido:", packageId);
+      logWarn("POST /credits/purchase com pacote inválido", {
+        appUserId: req.user.appUserId,
+        packageId,
+      });
+
       return res.status(400).json({
         error: "Pacote inválido",
       });
     }
 
-    const userEmail = req.user.email;
+    const userId = req.user.appUserId;
 
-    console.log(
-      `[BACKEND] Adicionando ${selectedPackage.credits} créditos para ${userEmail}`
-    );
+    logInfo("Adicionando créditos manualmente", {
+      appUserId: req.user.appUserId,
+      authUserId: req.user.authUserId,
+      email: req.user.email,
+      packageId: selectedPackage.id,
+      creditsToAdd: selectedPackage.credits,
+    });
 
-    await addUserCredits(
-      userEmail,
+    await addUserCreditsByUserId(
+      userId,
       selectedPackage.credits,
       `Compra de créditos - ${selectedPackage.label}`
     );
 
-    const user = await getUserCredits(userEmail);
+    const user = await getUserCreditsByUserId(userId);
 
-    console.log(
-      `[BACKEND] Novo saldo de ${user.email}: ${user.credits} créditos`
-    );
+    logInfo("Compra manual concluída com sucesso", {
+      appUserId: req.user.appUserId,
+      authUserId: req.user.authUserId,
+      email: req.user.email,
+      packageId: selectedPackage.id,
+      purchasedCredits: selectedPackage.credits,
+      credits: user.credits,
+    });
 
     return res.json({
       email: user.email,
@@ -74,7 +103,11 @@ export async function postPurchaseCredits(req: Request, res: Response) {
       packageId: selectedPackage.id,
     });
   } catch (error) {
-    console.error("[BACKEND] Erro na rota /credits/purchase:", error);
+    logError("Erro na rota /credits/purchase", error, {
+      path: req.path,
+      method: req.method,
+      user: req.user,
+    });
 
     return res.status(500).json({
       error: "Erro ao comprar créditos",

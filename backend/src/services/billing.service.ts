@@ -1,4 +1,5 @@
-import { addUserCredits, getUserCredits } from "./credits.service";
+import { addUserCreditsByUserId, getUserCreditsByUserId } from "./credits.service";
+import { logError, logInfo } from "../lib/logger";
 
 import Stripe from "stripe";
 import { getCreditPackage } from "../config/credit-packages";
@@ -30,7 +31,7 @@ function getWebhookSecret() {
 }
 
 export async function createStripeCheckoutSession(input: {
-  userEmail: string;
+  userId: string;
   packageId: string;
 }) {
   const selectedPackage = getCreditPackage(input.packageId);
@@ -39,7 +40,17 @@ export async function createStripeCheckoutSession(input: {
     throw new Error("INVALID_PACKAGE");
   }
 
-  const user = await getUserCredits(input.userEmail);
+  const user = await getUserCreditsByUserId(input.userId);
+
+  logInfo("Criando sessão local de checkout", {
+    appUserId: user.id,
+    email: user.email,
+    packageId: selectedPackage.id,
+    credits: selectedPackage.credits,
+    amountCents: selectedPackage.amountCents,
+    currency: selectedPackage.currency,
+    flow: "stripe_checkout_create",
+  });
 
   const { data: inserted, error: insertError } = await supabaseAdmin
     .from("checkout_sessions")
@@ -53,6 +64,7 @@ export async function createStripeCheckoutSession(input: {
       status: "pending",
       metadata: {
         userEmail: user.email,
+        userId: user.id,
       },
     })
     .select(
@@ -107,6 +119,15 @@ export async function createStripeCheckoutSession(input: {
       `Erro ao vincular checkout do Stripe: ${updateError.message}`
     );
   }
+
+  logInfo("Checkout Stripe criado com sucesso", {
+    appUserId: user.id,
+    email: user.email,
+    packageId: selectedPackage.id,
+    stripeCheckoutSessionId: checkoutSession.id,
+    localCheckoutSessionId: localCheckout.id,
+    flow: "stripe_checkout_create",
+  });
 
   return {
     checkoutUrl: checkoutSession.url,
@@ -207,10 +228,17 @@ async function hasGrantedCreditsForStripeSession(stripeCheckoutSessionId: string
 }
 
 export async function handleStripeEvent(event: Stripe.Event) {
-  console.log("[BACKEND] Iniciando processamento do evento Stripe:", event.type, event.id);
+  logInfo("Iniciando processamento do evento Stripe", {
+    stripeEventType: event.type,
+    stripeEventId: event.id,
+  });
 
   if (await hasProcessedStripeEvent(event.id)) {
-    console.log("[BACKEND] Evento Stripe já processado:", event.id);
+    logInfo("Evento Stripe já processado", {
+      stripeEventId: event.id,
+      stripeEventType: event.type,
+    });
+
     return {
       ok: true,
       duplicated: true,
@@ -221,18 +249,20 @@ export async function handleStripeEvent(event: Stripe.Event) {
     const session = event.data.object as Stripe.Checkout.Session;
 
     const stripeCheckoutSessionId = session.id;
-    const userEmail = session.metadata?.userEmail;
     const packageId = session.metadata?.packageId;
     const credits = Number(session.metadata?.credits ?? 0);
 
-    console.log("[BACKEND] checkout.session.completed metadata:", {
+    logInfo("checkout.session.completed recebido", {
       stripeCheckoutSessionId,
-      userEmail,
       packageId,
       credits,
+      internalCheckoutSessionId: session.metadata?.internalCheckoutSessionId,
+      metadataUserId: session.metadata?.userId,
+      clientReferenceId: session.client_reference_id,
+      flow: "stripe_webhook_completed",
     });
 
-    if (!stripeCheckoutSessionId || !userEmail || !packageId || !credits) {
+    if (!stripeCheckoutSessionId || !packageId || !credits) {
       throw new Error("Evento checkout.session.completed sem metadata suficiente.");
     }
 
@@ -244,17 +274,32 @@ export async function handleStripeEvent(event: Stripe.Event) {
       );
     }
 
-    console.log("[BACKEND] Checkout local encontrado:", localCheckout);
+    logInfo("Checkout local encontrado para sessão Stripe", {
+      stripeCheckoutSessionId,
+      localCheckoutSessionId: localCheckout.id,
+      appUserId: localCheckout.user_id,
+      packageId: localCheckout.package_id,
+      status: localCheckout.status,
+      credits: localCheckout.credits,
+      flow: "stripe_webhook_completed",
+    });
 
     const alreadyGranted = await hasGrantedCreditsForStripeSession(
       stripeCheckoutSessionId
     );
 
     if (!alreadyGranted) {
-      console.log("[BACKEND] Concedendo créditos para sessão Stripe:", stripeCheckoutSessionId);
+      logInfo("Concedendo créditos da sessão Stripe", {
+        stripeCheckoutSessionId,
+        localCheckoutSessionId: localCheckout.id,
+        appUserId: localCheckout.user_id,
+        packageId,
+        credits,
+        flow: "stripe_credit_grant",
+      });
 
-      await addUserCredits(
-        userEmail,
+      await addUserCreditsByUserId(
+        localCheckout.user_id,
         credits,
         `Compra de créditos via Stripe - ${packageId}`,
         {
@@ -264,11 +309,16 @@ export async function handleStripeEvent(event: Stripe.Event) {
             packageId,
             credits,
             stripeCheckoutSessionId,
+            localCheckoutSessionId: localCheckout.id,
+            userId: localCheckout.user_id,
           },
         }
       );
     } else {
-      console.log("[BACKEND] Créditos já haviam sido concedidos para essa sessão.");
+      logInfo("Créditos da sessão Stripe já haviam sido concedidos", {
+        stripeCheckoutSessionId,
+        appUserId: localCheckout.user_id,
+      });
     }
 
     await markCheckoutStatus({
@@ -280,11 +330,19 @@ export async function handleStripeEvent(event: Stripe.Event) {
           : null,
     });
 
-    console.log("[BACKEND] Checkout marcado como pago:", stripeCheckoutSessionId);
+    logInfo("Checkout marcado como pago", {
+      stripeCheckoutSessionId,
+      localCheckoutSessionId: localCheckout.id,
+      appUserId: localCheckout.user_id,
+      flow: "stripe_checkout_paid",
+    });
 
     await markStripeEventProcessed(event);
 
-    console.log("[BACKEND] Evento Stripe registrado:", event.id);
+    logInfo("Evento Stripe registrado com sucesso", {
+      stripeEventId: event.id,
+      stripeEventType: event.type,
+    });
 
     return {
       ok: true,
@@ -307,6 +365,12 @@ export async function handleStripeEvent(event: Stripe.Event) {
 
     await markStripeEventProcessed(event);
 
+    logInfo("Checkout expirado processado", {
+      stripeEventId: event.id,
+      stripeEventType: event.type,
+      stripeCheckoutSessionId: session.id,
+    });
+
     return {
       ok: true,
       duplicated: false,
@@ -316,7 +380,10 @@ export async function handleStripeEvent(event: Stripe.Event) {
 
   await markStripeEventProcessed(event);
 
-  console.log("[BACKEND] Evento Stripe ignorado, mas registrado:", event.type);
+  logInfo("Evento Stripe ignorado, mas registrado", {
+    stripeEventId: event.id,
+    stripeEventType: event.type,
+  });
 
   return {
     ok: true,

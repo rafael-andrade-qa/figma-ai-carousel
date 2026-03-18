@@ -4,14 +4,23 @@ import {
   createStripeCheckoutSession,
   handleStripeEvent,
 } from "../services/billing.service";
+import { logError, logInfo, logWarn } from "../lib/logger";
 
 export async function postCreateCheckoutSession(req: Request, res: Response) {
   try {
-    console.log("[BACKEND] POST /billing/checkout-sessions recebido");
-    console.log("[BACKEND] body:", req.body);
-    console.log("[BACKEND] user:", req.user);
+    logInfo("POST /billing/checkout-sessions recebido", {
+      path: req.path,
+      method: req.method,
+      body: req.body,
+      user: req.user,
+    });
 
     if (!req.user) {
+      logWarn("POST /billing/checkout-sessions sem autenticação", {
+        path: req.path,
+        method: req.method,
+      });
+
       return res.status(401).json({
         error: "AUTH_REQUIRED",
       });
@@ -22,19 +31,37 @@ export async function postCreateCheckoutSession(req: Request, res: Response) {
     };
 
     if (!packageId || typeof packageId !== "string") {
+      logWarn("POST /billing/checkout-sessions com packageId inválido", {
+        appUserId: req.user.appUserId,
+        body: req.body,
+      });
+
       return res.status(400).json({
         error: "packageId é obrigatório",
       });
     }
 
     const result = await createStripeCheckoutSession({
-      userEmail: req.user.email,
+      userId: req.user.appUserId,
       packageId,
+    });
+
+    logInfo("Checkout session criada com sucesso", {
+      appUserId: req.user.appUserId,
+      authUserId: req.user.authUserId,
+      email: req.user.email,
+      packageId,
+      checkoutSessionId: result.checkoutSessionId,
+      localCheckoutSessionId: result.localCheckoutSessionId,
     });
 
     return res.json(result);
   } catch (error) {
-    console.error("[BACKEND] Erro na rota /billing/checkout-sessions:", error);
+    logError("Erro na rota /billing/checkout-sessions", error, {
+      path: req.path,
+      method: req.method,
+      user: req.user,
+    });
 
     if (error instanceof Error && error.message === "INVALID_PACKAGE") {
       return res.status(400).json({
@@ -51,33 +78,54 @@ export async function postCreateCheckoutSession(req: Request, res: Response) {
 
 export async function postStripeWebhook(req: Request, res: Response) {
   try {
-    console.log("[BACKEND] POST /billing/webhooks/stripe recebido");
+    logInfo("POST /billing/webhooks/stripe recebido", {
+      path: req.path,
+      method: req.method,
+    });
 
     const signature = req.headers["stripe-signature"];
 
     if (!signature || typeof signature !== "string") {
-      console.error("[BACKEND] Webhook sem stripe-signature");
+      logWarn("Webhook Stripe sem assinatura", {
+        path: req.path,
+        method: req.method,
+      });
+
       return res.status(400).send("Missing stripe-signature header");
     }
 
     const rawBody = req.body as Buffer;
 
     if (!Buffer.isBuffer(rawBody)) {
-      console.error("[BACKEND] req.body do webhook não é Buffer");
+      logWarn("Webhook Stripe com body inválido", {
+        path: req.path,
+        method: req.method,
+      });
+
       return res.status(400).send("Invalid webhook body");
     }
 
     const event = constructStripeEvent(rawBody, signature);
 
-    console.log("[BACKEND] Evento Stripe recebido:", event.type, event.id);
+    logInfo("Evento Stripe recebido", {
+      stripeEventId: event.id,
+      stripeEventType: event.type,
+    });
 
     const result = await handleStripeEvent(event);
 
-    console.log("[BACKEND] Resultado do processamento do webhook:", result);
+    logInfo("Webhook Stripe processado", {
+      stripeEventId: event.id,
+      stripeEventType: event.type,
+      result,
+    });
 
     return res.json(result);
   } catch (error) {
-    console.error("[BACKEND] Erro no webhook Stripe:", error);
+    logError("Erro no webhook Stripe", error, {
+      path: req.path,
+      method: req.method,
+    });
 
     return res.status(400).send(
       error instanceof Error ? error.message : "Webhook error"
