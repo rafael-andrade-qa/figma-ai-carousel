@@ -22,4 +22,8 @@ export type CarouselResponse = {
 export type GenerateCarouselInput = {
   prompt: string;
   cards: number;
+  generationId?: string;
+  appUserId?: string;
+  authUserId?: string;
+  userEmail?: string;
 };

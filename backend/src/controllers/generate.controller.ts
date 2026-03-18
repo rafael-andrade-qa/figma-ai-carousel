@@ -98,9 +98,13 @@ export async function postGenerate(req: Request, res: Response) {
     }
 
     try {
-      const result = await generateCarousel({
-        prompt,
-        cards: totalCards,
+        const result = await generateCarousel({
+          prompt,
+          cards: totalCards,
+          generationId,
+          appUserId: req.user.appUserId,
+          authUserId: req.user.authUserId,
+          userEmail: req.user.email,
       });
 
       logInfo("Geração concluída com sucesso", {
