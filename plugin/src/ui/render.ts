@@ -126,64 +126,54 @@ export async function renderApp() {
 
   if (state.currentScreen === "auth") {
     root.innerHTML = renderAuthScreen({
-      pendingEmail: state.pendingEmail,
+      email: state.pendingEmail,
     });
 
-    bindAuthScreen({
-      onBack: () => {
-        setPendingEmail(null);
-        setScreen("welcome");
+  bindAuthScreen({
+    onRequestCode: async (email: string) => {
+      try {
+        await requestEmailOtp(email);
+        setPendingEmail(email);
         renderApp();
-      },
-      onRequestCode: async (email) => {
-        try {
-          await requestEmailOtp(email);
-          setPendingEmail(email);
-          renderApp();
-        } catch (error) {
-          console.error("[UI] Erro ao solicitar OTP:", error);
-          window.alert(
-            error instanceof Error ? error.message : "Erro ao enviar código."
-          );
-        }
-      },
-      onVerifyCode: async (code) => {
-        try {
-          const email = getState().pendingEmail;
+      } catch (error) {
+        console.error(error);
+      }
+    },
 
-          if (!email) {
-            throw new Error("Nenhum email pendente para validação.");
-          }
+    onVerifyCode: async (code: string) => {
+      try {
+        const email = getState().pendingEmail;
+        if (!email) return;
 
-          const hadUserBefore = Boolean(getState().user?.email);
+        const session = await verifyEmailOtp(email, code);
 
-          const session = await verifyEmailOtp(email, code);
-          setAuthenticatedSession(session);
+        setAuthenticatedSession(session);
 
-          const creditsResult = await requestCredits(session.accessToken);
-          setCredits(creditsResult.credits);
+        const creditsResult = await requestCredits(session.accessToken);
+        setCredits(creditsResult.credits);
 
-          if (!hadUserBefore) {
-            setScreen("creditsGranted");
-          } else if (creditsResult.credits <= 0) {
-            setScreen("paywall");
-          } else {
-            setScreen("dashboard");
-          }
+        setScreen(
+          creditsResult.credits > 0 ? "dashboard" : "paywall"
+        );
 
-          renderApp();
-        } catch (error) {
-          console.error("[UI] Erro ao validar OTP:", error);
-          window.alert(
-            error instanceof Error ? error.message : "Erro ao validar código."
-          );
-        }
-      },
-      onChangeEmail: () => {
-        setPendingEmail(null);
         renderApp();
-      },
-    });
+      } catch (error) {
+        console.error(error);
+      }
+    },
+
+    onResendCode: async () => {
+      const email = getState().pendingEmail;
+      if (!email) return;
+
+      await requestEmailOtp(email);
+    },
+
+    onChangeEmail: () => {
+      setPendingEmail(null);
+      renderApp();
+    },
+  });
 
     return;
   }

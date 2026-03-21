@@ -1,70 +1,94 @@
+type AuthActions = {
+  onRequestCode: (email: string) => void | Promise<void>;
+  onVerifyCode: (code: string) => void | Promise<void>;
+  onResendCode: () => void | Promise<void>;
+  onChangeEmail: () => void;
+};
+
 export function renderAuthScreen(params: {
-  pendingEmail: string | null;
+  email: string | null;
+  error?: string | null;
 }) {
-  const hasPendingEmail = Boolean(params.pendingEmail);
+  const hasEmail = Boolean(params.email);
 
   return `
     <div class="app-shell">
-      <div class="hero hero-compact">
+      <section class="hero hero-compact">
         <div class="brand-row">
-          <button id="authBack" class="ghost-button" type="button">Voltar</button>
+          <div class="brand">
+            <div class="brand-mark">✦</div>
+            <span>Figma AI Carousel</span>
+          </div>
+
           <div class="badge">Acesso seguro</div>
         </div>
 
-        <h1>Entre com seu email</h1>
+        <h1>${hasEmail ? "Digite o código" : "Entre com seu email"}</h1>
+
         <p>
-          Vamos enviar um código para autenticar sua conta no plugin.
+          ${
+            hasEmail
+              ? `Enviamos um código para <strong>${params.email}</strong>`
+              : "Use seu email para acessar o plugin. Sem senha, sem complicação."
+          }
         </p>
-      </div>
+      </section>
 
       <div class="content">
-        <div class="section">
-          <label for="authEmail">Email</label>
-          <input
-            id="authEmail"
-            type="email"
-            placeholder="voce@exemplo.com"
-            value="${params.pendingEmail ?? ""}"
-            ${hasPendingEmail ? "disabled" : ""}
-          />
-        </div>
 
         ${
-          hasPendingEmail
+          !hasEmail
             ? `
           <div class="section">
-            <label for="authCode">Código de 8 dígitos</label>
-            <input
-              id="authCode"
-              type="text"
-              inputmode="numeric"
-              maxlength="8"
-              placeholder="12345678"
-            />
-            <div class="inline-error" style="color: var(--muted); margin-top: 10px;">
-              Código enviado para ${params.pendingEmail}
+            <p class="section-title">Acesse em segundos</p>
+            <p class="section-help">
+              Digite seu email e enviaremos um código de acesso.
+            </p>
+
+            <label for="authEmail">Email</label>
+            <input id="authEmail" type="email" placeholder="voce@exemplo.com" />
+          </div>
+        `
+            : `
+          <div class="section">
+            <p class="section-title">Validação</p>
+            <p class="section-help">
+              Digite o código enviado para seu email.
+            </p>
+
+            <label for="authCode">Código</label>
+            <input id="authCode" type="text" inputmode="numeric" maxlength="8" placeholder="12345678" />
+
+            <div class="inline-error">
+              Não recebeu? Clique em reenviar
             </div>
+          </div>
+        `
+        }
+
+        ${
+          params.error
+            ? `
+          <div class="status-card error">
+            <div class="status-top">
+              <div class="status-dot"></div>
+              <div class="status-label">Erro</div>
+            </div>
+            <div class="status-text">${params.error}</div>
           </div>
         `
             : ""
         }
 
-        <div class="welcome-actions">
+        <div class="actions">
           ${
-            hasPendingEmail
-              ? `
-            <button id="verifyCode" class="primary-button" type="button">
-              Validar código
-            </button>
-            <button id="changeEmail" class="ghost-button" type="button">
-              Alterar email
-            </button>
-          `
+            !hasEmail
+              ? `<button id="requestCode" class="primary-button">Continuar</button>`
               : `
-            <button id="requestCode" class="primary-button" type="button">
-              Receber código
-            </button>
-          `
+                <button id="verifyCode" class="primary-button">Entrar</button>
+                <button id="resendCode" class="ghost-button">Reenviar código</button>
+                <button id="changeEmail" class="ghost-button">Trocar email</button>
+              `
           }
         </div>
       </div>
@@ -72,30 +96,31 @@ export function renderAuthScreen(params: {
   `;
 }
 
-export function bindAuthScreen(actions: {
-  onBack: () => void;
-  onRequestCode: (email: string) => void | Promise<void>;
-  onVerifyCode: (code: string) => void | Promise<void>;
-  onChangeEmail: () => void;
-}) {
-  const backButton = document.getElementById("authBack");
-  const requestCodeButton = document.getElementById("requestCode");
-  const verifyCodeButton = document.getElementById("verifyCode");
-  const changeEmailButton = document.getElementById("changeEmail");
+export function bindAuthScreen(actions: AuthActions) {
   const emailInput = document.getElementById("authEmail") as HTMLInputElement | null;
   const codeInput = document.getElementById("authCode") as HTMLInputElement | null;
 
-  backButton?.addEventListener("click", actions.onBack);
-
-  requestCodeButton?.addEventListener("click", async () => {
+  document.getElementById("requestCode")?.addEventListener("click", async () => {
     const email = emailInput?.value?.trim() ?? "";
     await actions.onRequestCode(email);
   });
 
-  verifyCodeButton?.addEventListener("click", async () => {
+  document.getElementById("verifyCode")?.addEventListener("click", async () => {
     const code = codeInput?.value?.trim() ?? "";
     await actions.onVerifyCode(code);
   });
 
-  changeEmailButton?.addEventListener("click", actions.onChangeEmail);
+  document.getElementById("resendCode")?.addEventListener("click", async () => {
+    await actions.onResendCode();
+  });
+
+  document.getElementById("changeEmail")?.addEventListener("click", () => {
+    actions.onChangeEmail();
+  });
+
+  codeInput?.addEventListener("input", () => {
+    if (codeInput.value.length === 8) {
+      actions.onVerifyCode(codeInput.value);
+    }
+  });
 }
