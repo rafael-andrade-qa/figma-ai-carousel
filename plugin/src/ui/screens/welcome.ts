@@ -5,31 +5,31 @@ export function renderWelcomeScreen() {
         <div class="brand-row">
           <div class="brand">
             <div class="brand-mark">✦</div>
-            <span>Figma AI Carousel</span>
+            <span>Figma AI Ads</span>
           </div>
           <div class="badge">5 créditos grátis</div>
         </div>
 
         <div class="hero-centered-content">
-          <h1>Crie carrosséis estratégicos com IA dentro do Figma</h1>
+          <h1>Crie peças e campanhas visuais com IA dentro do Figma</h1>
           <p>
-            Gere capa, conteúdo e CTA final em poucos cliques com templates prontos para Instagram.
+            Transforme um briefing em criativos prontos para conteúdo, anúncios e campanhas visuais com mais velocidade.
           </p>
 
           <div class="welcome-benefits">
             <div class="mini-card">
-              <strong>Templates prontos</strong>
-              <span>Authority, Educational, Checklist e mais.</span>
+              <strong>Múltiplos formatos</strong>
+              <span>Carrossel, post, stories, capa para Reels e mais.</span>
             </div>
 
             <div class="mini-card">
               <strong>Fluxo rápido</strong>
-              <span>Do briefing ao canvas em segundos.</span>
+              <span>Do briefing ao canvas em poucos cliques.</span>
             </div>
 
             <div class="mini-card">
               <strong>Teste grátis</strong>
-              <span>Ganhe 5 créditos para começar.</span>
+              <span>Ganhe créditos para começar agora.</span>
             </div>
           </div>
 

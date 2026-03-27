@@ -12,6 +12,7 @@ import {
   setCredits,
   setPendingEmail,
   setScreen,
+  setSelectedFormat,
 } from "./state";
 import {
   getAccessTokenOrThrow,
@@ -37,6 +38,12 @@ import {
   renderTransactionsScreen,
 } from "./screens/transactions";
 import { bindWelcomeScreen, renderWelcomeScreen } from "./screens/welcome";
+import {
+  bindSelectFormatScreen,
+  renderSelectFormatScreen,
+} from "./screens/selectFormat";
+
+import { isCreativeFormatAvailableNow } from "./creativeFormats";
 
 function getRoot() {
   return document.getElementById("app-root");
@@ -117,7 +124,7 @@ export async function renderApp() {
     bindWelcomeScreen({
       onStart: () => {
         setScreen("auth");
-        renderApp();
+        void renderApp();
       },
     });
 
@@ -129,51 +136,63 @@ export async function renderApp() {
       email: state.pendingEmail,
     });
 
-  bindAuthScreen({
-    onRequestCode: async (email: string) => {
-      try {
-        await requestEmailOtp(email);
-        setPendingEmail(email);
-        renderApp();
-      } catch (error) {
-        console.error(error);
-      }
-    },
+    bindAuthScreen({
+      onRequestCode: async (email: string) => {
+        try {
+          await requestEmailOtp(email);
+          setPendingEmail(email);
+          await renderApp();
+        } catch (error) {
+          console.error("[UI] Erro ao solicitar código OTP:", error);
+        }
+      },
 
-    onVerifyCode: async (code: string) => {
-      try {
-        const email = getState().pendingEmail;
-        if (!email) return;
+      onVerifyCode: async (code: string) => {
+        try {
+          const email = getState().pendingEmail;
 
-        const session = await verifyEmailOtp(email, code);
+          if (!email) {
+            return;
+          }
 
-        setAuthenticatedSession(session);
+          const session = await verifyEmailOtp(email, code);
 
-        const creditsResult = await requestCredits(session.accessToken);
-        setCredits(creditsResult.credits);
+          setAuthenticatedSession(session);
 
-        setScreen(
-          creditsResult.credits > 0 ? "dashboard" : "paywall"
-        );
+          const creditsResult = await requestCredits(session.accessToken);
+          setCredits(creditsResult.credits);
 
-        renderApp();
-      } catch (error) {
-        console.error(error);
-      }
-    },
+          if (creditsResult.credits > 0) {
+            setScreen("selectFormat");
+          } else {
+            setScreen("paywall");
+          }
 
-    onResendCode: async () => {
-      const email = getState().pendingEmail;
-      if (!email) return;
+          await renderApp();
+        } catch (error) {
+          console.error("[UI] Erro ao verificar OTP:", error);
+        }
+      },
 
-      await requestEmailOtp(email);
-    },
+      onResendCode: async () => {
+        try {
+          const email = getState().pendingEmail;
 
-    onChangeEmail: () => {
-      setPendingEmail(null);
-      renderApp();
-    },
-  });
+          if (!email) {
+            return;
+          }
+
+          await requestEmailOtp(email);
+        } catch (error) {
+          console.error("[UI] Erro ao reenviar código OTP:", error);
+        }
+      },
+
+      onChangeEmail: () => {
+        setPendingEmail(null);
+        void renderApp();
+      },
+    });
 
     return;
   }
@@ -183,8 +202,13 @@ export async function renderApp() {
 
     bindCreditsGrantedScreen({
       onContinue: () => {
-        setScreen(state.credits > 0 ? "dashboard" : "paywall");
-        renderApp();
+        if (state.credits > 0) {
+          setScreen("selectFormat");
+        } else {
+          setScreen("paywall");
+        }
+
+        void renderApp();
       },
     });
 
@@ -193,7 +217,38 @@ export async function renderApp() {
 
   if (!state.session) {
     setScreen("auth");
-    renderApp();
+    await renderApp();
+    return;
+  }
+
+  if (state.currentScreen === "selectFormat") {
+    root.innerHTML = renderSelectFormatScreen(state.selectedFormat);
+
+    bindSelectFormatScreen({
+      onSelectFormat: async (format) => {
+        setSelectedFormat(format);
+
+        if (!isCreativeFormatAvailableNow(format)) {
+          window.alert("Esse formato entra em breve 🚀");
+        }
+
+        await renderApp();
+      },
+
+      onContinue: async () => {
+        const currentState = getState();
+        const selectedFormat = currentState.selectedFormat ?? "carousel";
+
+        if (!isCreativeFormatAvailableNow(selectedFormat)) {
+          window.alert("Esse formato ainda não está disponível. Use Carrossel por enquanto.");
+          return;
+        }
+
+        setScreen("dashboard");
+        await renderApp();
+      },
+    });
+
     return;
   }
 
@@ -203,41 +258,51 @@ export async function renderApp() {
     bindPaywallScreen({
       onBack: () => {
         setScreen("dashboard");
-        renderApp();
+        void renderApp();
       },
+
       onBuy: async (packageId) => {
-        const accessToken = await getAccessTokenOrThrow();
-        const previousCredits = getState().credits;
+        try {
+          const accessToken = await getAccessTokenOrThrow();
+          const previousCredits = getState().credits;
 
-        const result = await requestCreateCheckoutSession({
-          accessToken,
-          packageId,
-        });
+          const result = await requestCreateCheckoutSession({
+            accessToken,
+            packageId,
+          });
 
-        if (!result.checkoutUrl) {
-          throw new Error("Checkout URL não foi retornada pelo backend.");
-        }
-
-        openExternalUrl(result.checkoutUrl);
-
-        void pollCreditsAfterCheckout(accessToken).then((pollResult) => {
-          if (pollResult.updated || pollResult.credits > previousCredits) {
-            setScreen("dashboard");
-            renderApp();
+          if (!result.checkoutUrl) {
+            throw new Error("Checkout URL não foi retornada pelo backend.");
           }
-        });
-      },
-      onRefreshCredits: async () => {
-        const accessToken = await getAccessTokenOrThrow();
-        const result = await requestCredits(accessToken);
 
-        setCredits(result.credits);
+          openExternalUrl(result.checkoutUrl);
 
-        if (result.credits > 0) {
-          setScreen("dashboard");
+          void pollCreditsAfterCheckout(accessToken).then((pollResult) => {
+            if (pollResult.updated || pollResult.credits > previousCredits) {
+              setScreen("dashboard");
+              void renderApp();
+            }
+          });
+        } catch (error) {
+          console.error("[UI] Erro ao iniciar checkout:", error);
         }
+      },
 
-        renderApp();
+      onRefreshCredits: async () => {
+        try {
+          const accessToken = await getAccessTokenOrThrow();
+          const result = await requestCredits(accessToken);
+
+          setCredits(result.credits);
+
+          if (result.credits > 0) {
+            setScreen("dashboard");
+          }
+
+          await renderApp();
+        } catch (error) {
+          console.error("[UI] Erro ao atualizar créditos:", error);
+        }
       },
     });
 
@@ -268,7 +333,7 @@ export async function renderApp() {
     bindTransactionsScreen({
       onBack: () => {
         setScreen("dashboard");
-        renderApp();
+        void renderApp();
       },
     });
 
@@ -297,11 +362,15 @@ export async function renderApp() {
     email: latestState.user?.email ?? "",
     onOpenPaywall: () => {
       setScreen("paywall");
-      renderApp();
+      void renderApp();
     },
     onOpenTransactions: () => {
       setScreen("transactions");
-      renderApp();
+      void renderApp();
+    },
+    onChangeFormat: () => {
+      setScreen("selectFormat");
+      void renderApp();
     },
     onSuccessfulGeneration: async (creditsUsed) => {
       consumeCredits(creditsUsed);
@@ -321,7 +390,7 @@ export async function renderApp() {
         setScreen("paywall");
       }
 
-      renderApp();
+      await renderApp();
     },
   });
 }
@@ -332,10 +401,19 @@ export async function bootstrapApp() {
   const state = getState();
 
   if (state.session) {
-    if (state.credits > 0) {
-      setScreen("dashboard");
-    } else {
-      setScreen("paywall");
+    try {
+      const accessToken = state.session.accessToken;
+      const creditsResult = await requestCredits(accessToken);
+      setCredits(creditsResult.credits);
+
+      if (creditsResult.credits > 0) {
+        setScreen("selectFormat");
+      } else {
+        setScreen("paywall");
+      }
+    } catch (error) {
+      console.error("[UI] Erro ao restaurar sessão:", error);
+      setScreen("auth");
     }
   } else {
     setScreen("welcome");
@@ -350,6 +428,13 @@ export async function bootstrapApp() {
     }
 
     setAuthenticatedSession(session);
+
+    if (getState().credits > 0) {
+      setScreen("selectFormat");
+    } else {
+      setScreen("paywall");
+    }
+
     void renderApp();
   });
 

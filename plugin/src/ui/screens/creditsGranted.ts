@@ -5,7 +5,7 @@ export function renderCreditsGrantedScreen(credits: number): string {
         <div class="brand-row">
           <div class="brand">
             <div class="brand-mark">✦</div>
-            <span>Figma AI Carousel</span>
+            <span>Figma AI Ads</span>
           </div>
           <div class="badge">Conta criada</div>
         </div>
@@ -15,7 +15,7 @@ export function renderCreditsGrantedScreen(credits: number): string {
           <h1>Pronto, seus créditos já estão liberados</h1>
           <p>
             Você recebeu <strong>${credits} créditos grátis</strong> para testar o plugin
-            e gerar seus primeiros carrosséis.
+            e criar seus primeiros criativos.
           </p>
 
           <div class="granted-card">
@@ -25,7 +25,7 @@ export function renderCreditsGrantedScreen(credits: number): string {
 
           <div class="welcome-actions">
             <button id="grantedContinue" class="primary-button" type="button">
-              Ir para o dashboard
+              Escolher formato
             </button>
           </div>
         </div>

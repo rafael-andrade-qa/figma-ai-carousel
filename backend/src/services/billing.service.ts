@@ -110,7 +110,7 @@ export async function createStripeCheckoutSession(input: {
           unit_amount: selectedPackage.amountCents,
           product_data: {
             name: selectedPackage.label,
-            description: `${selectedPackage.credits} créditos para o Figma AI Carousel`,
+            description: `${selectedPackage.credits} créditos para o Figma AI Ads`,
           },
         },
       },

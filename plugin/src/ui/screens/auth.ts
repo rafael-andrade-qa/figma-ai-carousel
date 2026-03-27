@@ -17,7 +17,7 @@ export function renderAuthScreen(params: {
         <div class="brand-row">
           <div class="brand">
             <div class="brand-mark">✦</div>
-            <span>Figma AI Carousel</span>
+            <span>Figma AI Ads</span>
           </div>
 
           <div class="badge">Acesso seguro</div>
@@ -35,7 +35,6 @@ export function renderAuthScreen(params: {
       </section>
 
       <div class="content">
-
         ${
           !hasEmail
             ? `
@@ -59,8 +58,8 @@ export function renderAuthScreen(params: {
             <label for="authCode">Código</label>
             <input id="authCode" type="text" inputmode="numeric" maxlength="8" placeholder="12345678" />
 
-            <div class="inline-error">
-              Não recebeu? Clique em reenviar
+            <div class="inline-helper">
+              Não recebeu? <button id="resendInline" class="inline-link-button" type="button">Clique aqui.</button>
             </div>
           </div>
         `
@@ -83,11 +82,10 @@ export function renderAuthScreen(params: {
         <div class="actions">
           ${
             !hasEmail
-              ? `<button id="requestCode" class="primary-button">Continuar</button>`
+              ? `<button id="requestCode" class="primary-button" type="button">Continuar</button>`
               : `
-                <button id="verifyCode" class="primary-button">Entrar</button>
-                <button id="resendCode" class="ghost-button">Reenviar código</button>
-                <button id="changeEmail" class="ghost-button">Trocar email</button>
+                <button id="verifyCode" class="primary-button" type="button">Entrar</button>
+                <button id="changeEmail" class="ghost-button" type="button">Trocar email</button>
               `
           }
         </div>
@@ -110,7 +108,7 @@ export function bindAuthScreen(actions: AuthActions) {
     await actions.onVerifyCode(code);
   });
 
-  document.getElementById("resendCode")?.addEventListener("click", async () => {
+  document.getElementById("resendInline")?.addEventListener("click", async () => {
     await actions.onResendCode();
   });
 
@@ -120,7 +118,7 @@ export function bindAuthScreen(actions: AuthActions) {
 
   codeInput?.addEventListener("input", () => {
     if (codeInput.value.length === 8) {
-      actions.onVerifyCode(codeInput.value);
+      void actions.onVerifyCode(codeInput.value);
     }
   });
 }

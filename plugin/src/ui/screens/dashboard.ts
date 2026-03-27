@@ -3,6 +3,13 @@ import type {
   GenerateCarouselMessage,
   PluginToUiMessage,
 } from "../../types/messages";
+import {
+  getCreativeFormatLabel,
+  getDashboardSubtitleByFormat,
+  getDashboardTitleByFormat,
+  getPromptPlaceholderByFormat,
+  getPromptSuggestionsByFormat,
+} from "../creativeFormats";
 
 import { getState } from "../state";
 
@@ -10,13 +17,43 @@ export function renderDashboardScreen(input: {
   credits: number;
   email: string | null;
 }): string {
+  const state = getState();
+  const selectedFormat = state.selectedFormat ?? "carousel";
+
+  const heroTitle = getDashboardTitleByFormat(selectedFormat);
+  const heroSubtitle = getDashboardSubtitleByFormat(selectedFormat);
+  const promptPlaceholder = getPromptPlaceholderByFormat(selectedFormat);
+  const promptSuggestions = getPromptSuggestionsByFormat(selectedFormat);
+  const selectedFormatLabel = getCreativeFormatLabel(selectedFormat);
+
+  const sectionTitle =
+    selectedFormat === "carousel" ? "Briefing do carrossel" : "Briefing da peça";
+
+  const brandingHelp =
+    selectedFormat === "carousel"
+      ? "Esses dados controlam os textos fixos e a identidade visual do carrossel."
+      : "Esses dados controlam os textos fixos e a identidade visual da peça.";
+
+  const generateButtonLabel =
+    selectedFormat === "carousel" ? "Gerar carrossel" : "Gerar peça";
+
+  const actionNote =
+    selectedFormat === "carousel"
+      ? "O plugin vai criar os frames direto no canvas do arquivo atual."
+      : "O plugin vai criar a peça direto no canvas do arquivo atual.";
+
+  const footerNote =
+    selectedFormat === "carousel"
+      ? "V1 focada em geração rápida de carrosséis estratégicos para Instagram."
+      : "V1 evoluindo para uma plataforma de geração de criativos com IA.";
+
   return `
     <div class="app-shell">
       <div class="hero">
         <div class="brand-row">
           <div class="brand">
             <div class="brand-mark">✦</div>
-            <span>Figma AI Carousel</span>
+            <span>Figma AI Ads</span>
           </div>
           <div class="badge">Plugin local • MVP</div>
         </div>
@@ -32,13 +69,25 @@ export function renderDashboardScreen(input: {
           </div>
         </div>
 
-        <h1>Crie carrosséis com IA dentro do Figma</h1>
-        <p>Gere capa, conteúdo e CTA final com texto e imagem em poucos cliques.</p>
+        <div class="dashboard-hero-copy">
+          <div class="dashboard-format-pill">
+            Formato atual: <strong>${selectedFormatLabel}</strong>
+          </div>
+
+          <h1>${heroTitle}</h1>
+          <p>${heroSubtitle}</p>
+
+          <div class="dashboard-secondary-actions">
+            <button id="changeFormatButton" class="ghost-button" type="button">
+              Trocar formato
+            </button>
+          </div>
+        </div>
       </div>
 
       <div class="content">
         <div class="section">
-          <p class="section-title">Briefing do carrossel</p>
+          <p class="section-title">${sectionTitle}</p>
           <p class="section-help">
             Escreva o tema, nicho, objetivo e tom. Quanto mais claro, melhor o resultado.
           </p>
@@ -46,56 +95,30 @@ export function renderDashboardScreen(input: {
           <label for="prompt">Prompt</label>
           <textarea
             id="prompt"
-            placeholder="Ex.: Carrossel para dentistas sobre o que fazer quando a agenda da clínica está vazia..."
+            placeholder="${promptPlaceholder}"
           ></textarea>
 
-          <div class="quick-prompts">
-            <button
-              class="chip"
-              type="button"
-              data-prompt="Crie um carrossel de Instagram sobre os principais erros que as pessoas cometem nesse tema. Estruture com um gancho forte no primeiro slide, depois apresente de 3 a 5 erros com explicações curtas e práticas, e finalize com um CTA simples. Linguagem clara, estratégica, profissional e fácil de entender."
-            >
-              Erros comuns
-            </button>
-
-            <button
-              class="chip"
-              type="button"
-              data-prompt="Crie um carrossel de Instagram em formato passo a passo sobre esse tema. Comece com uma capa forte, depois organize o conteúdo em etapas claras e objetivas, mostrando uma sequência lógica de execução, e termine com um CTA direto. Linguagem prática, profissional e orientada à ação."
-            >
-              Passo a passo
-            </button>
-
-            <button
-              class="chip"
-              type="button"
-              data-prompt="Crie um carrossel de Instagram no formato mito vs verdade sobre esse tema. Comece com um gancho que desperte curiosidade, depois apresente crenças equivocadas e explique a verdade por trás de cada uma, com clareza e autoridade, finalizando com um CTA simples. Linguagem direta, moderna e confiável."
-            >
-              Mito ou verdade
-            </button>
-
-            <button
-              class="chip"
-              type="button"
-              data-prompt="Crie um carrossel de Instagram em formato estudo de caso sobre esse tema. Estruture mostrando contexto, problema, solução aplicada e resultado, de forma envolvente e fácil de acompanhar. Finalize com um CTA objetivo. Linguagem profissional, persuasiva e com foco em credibilidade."
-            >
-              Estudo de caso
-            </button>
-
-            <button
-              class="chip"
-              type="button"
-              data-prompt="Crie um carrossel de Instagram com dicas práticas sobre esse tema. Comece com uma capa forte, depois apresente dicas objetivas, úteis e aplicáveis no dia a dia, com explicações curtas, e finalize com um CTA claro. Linguagem simples, estratégica e voltada para gerar valor."
-            >
-              Dicas práticas
-            </button>
+          <div class="prompt-chips">
+            ${promptSuggestions
+              .map(
+                (item) => `
+                  <button
+                    type="button"
+                    class="chip-button"
+                    data-chip-value="${item}"
+                  >
+                    ${item}
+                  </button>
+                `
+              )
+              .join("")}
           </div>
         </div>
 
         <div class="section">
           <p class="section-title">Branding</p>
           <p class="section-help">
-            Esses dados controlam os textos fixos e a identidade visual do carrossel.
+            ${brandingHelp}
           </p>
 
           <div class="grid-2">
@@ -161,11 +184,11 @@ export function renderDashboardScreen(input: {
 
         <div class="actions">
           <button id="generate" class="primary-button" type="button">
-            Gerar carrossel
+            ${generateButtonLabel}
           </button>
 
           <div class="action-note">
-            O plugin vai criar os frames direto no canvas do arquivo atual.
+            ${actionNote}
           </div>
         </div>
 
@@ -180,7 +203,7 @@ export function renderDashboardScreen(input: {
         </div>
 
         <div class="footer-note">
-          V1 focada em geração rápida de carrosséis estratégicos para Instagram.
+          ${footerNote}
         </div>
       </div>
     </div>
@@ -193,6 +216,7 @@ export function bindDashboardScreen(actions: {
   onOpenPaywall: () => void;
   onOpenTransactions: () => void;
   onSuccessfulGeneration: (creditsUsed: number) => void | Promise<void>;
+  onChangeFormat: () => void;
 }) {
   const promptEl = document.getElementById("prompt") as HTMLTextAreaElement | null;
   const generateButton = document.getElementById("generate") as HTMLButtonElement | null;
@@ -207,20 +231,24 @@ export function bindDashboardScreen(actions: {
   const ctaLabelEl = document.getElementById("ctaLabel") as HTMLInputElement | null;
   const openPaywallButton = document.getElementById("openPaywall");
   const openTransactionsButton = document.getElementById("openTransactions");
+  const changeFormatButton = document.getElementById("changeFormatButton");
 
   const cardsOptions = Array.from(
     document.querySelectorAll<HTMLButtonElement>(".cards-option")
   );
 
   const quickPromptButtons = Array.from(
-    document.querySelectorAll<HTMLButtonElement>(".chip")
+    document.querySelectorAll<HTMLButtonElement>(".chip-button")
   );
 
   let selectedCards = 5;
   let pendingCreditsCost = 0;
 
   function getCreditsCost(cards: number) {
-    if (cards === 7) return 2;
+    if (cards === 7) {
+      return 2;
+    }
+
     return 1;
   }
 
@@ -228,20 +256,37 @@ export function bindDashboardScreen(actions: {
     message: string,
     type: "default" | "success" | "error" = "default"
   ) {
-    if (!statusCard || !statusText) return;
+    if (!statusCard || !statusText) {
+      return;
+    }
 
     statusText.textContent = message;
     statusCard.classList.remove("success", "error");
 
-    if (type === "success") statusCard.classList.add("success");
-    if (type === "error") statusCard.classList.add("error");
+    if (type === "success") {
+      statusCard.classList.add("success");
+    }
+
+    if (type === "error") {
+      statusCard.classList.add("error");
+    }
+  }
+
+  function getSelectedFormat() {
+    return getState().selectedFormat ?? "carousel";
+  }
+
+  function getGenerateButtonLabel() {
+    return getSelectedFormat() === "carousel" ? "Gerar carrossel" : "Gerar peça";
   }
 
   function setLoading(isLoading: boolean) {
-    if (!generateButton) return;
+    if (!generateButton) {
+      return;
+    }
 
     generateButton.disabled = isLoading;
-    generateButton.textContent = isLoading ? "Gerando..." : "Gerar carrossel";
+    generateButton.textContent = isLoading ? "Gerando..." : getGenerateButtonLabel();
   }
 
   function setCards(value: number) {
@@ -273,6 +318,13 @@ export function bindDashboardScreen(actions: {
   }
 
   function postGenerateMessage() {
+    const selectedFormat = getSelectedFormat();
+
+    if (selectedFormat !== "carousel") {
+      setStatus("Esse formato entra em breve. Use Carrossel por enquanto.", "error");
+      return;
+    }
+
     const prompt = promptEl?.value.trim() || "";
 
     if (!validatePrompt(prompt)) {
@@ -316,22 +368,30 @@ export function bindDashboardScreen(actions: {
   }
 
   function bindCardsGrid() {
-    if (!cardsGrid) return;
+    if (!cardsGrid) {
+      return;
+    }
 
     cardsGrid.addEventListener("click", (event) => {
       const target = event.target as HTMLElement | null;
       const button = target?.closest(".cards-option") as HTMLButtonElement | null;
 
-      if (!button) return;
+      if (!button) {
+        return;
+      }
 
       const value = Number(button.dataset.value);
-      if (!Number.isFinite(value)) return;
+
+      if (!Number.isFinite(value)) {
+        return;
+      }
 
       setCards(value);
+
+      const cost = getCreditsCost(value);
+
       setStatus(
-        `Essa geração vai consumir ${getCreditsCost(value)} crédito${
-          getCreditsCost(value) > 1 ? "s" : ""
-        }.`
+        `Essa geração vai consumir ${cost} crédito${cost > 1 ? "s" : ""}.`
       );
     });
   }
@@ -339,16 +399,27 @@ export function bindDashboardScreen(actions: {
   function bindQuickPrompts() {
     quickPromptButtons.forEach((button) => {
       button.addEventListener("click", () => {
-        if (!promptEl) return;
+        if (!promptEl) {
+          return;
+        }
 
-        promptEl.value = button.dataset.prompt || "";
-        setStatus("Prompt de exemplo aplicado.");
+        const chipValue = button.dataset.chipValue || "";
+        const currentPrompt = promptEl.value.trim();
+
+        promptEl.value = currentPrompt
+          ? `${currentPrompt} ${chipValue}`
+          : chipValue;
+
+        promptEl.focus();
+        setStatus(`Sugestão "${chipValue}" adicionada ao prompt.`);
       });
     });
   }
 
   function bindGenerateButton() {
-    if (!generateButton) return;
+    if (!generateButton) {
+      return;
+    }
 
     generateButton.addEventListener("click", () => {
       postGenerateMessage();
@@ -359,7 +430,9 @@ export function bindDashboardScreen(actions: {
     window.onmessage = (event: MessageEvent<{ pluginMessage?: PluginToUiMessage }>) => {
       const msg = event.data.pluginMessage;
 
-      if (!msg) return;
+      if (!msg) {
+        return;
+      }
 
       if (msg.type === "status") {
         setStatus(msg.message);
@@ -411,12 +484,14 @@ export function bindDashboardScreen(actions: {
     return;
   }
 
+  changeFormatButton?.addEventListener("click", actions.onChangeFormat);
+  openPaywallButton?.addEventListener("click", actions.onOpenPaywall);
+  openTransactionsButton?.addEventListener("click", actions.onOpenTransactions);
+
   setCards(selectedCards);
   bindCardsGrid();
   bindQuickPrompts();
   bindGenerateButton();
   bindPluginMessages();
-  openPaywallButton?.addEventListener("click", actions.onOpenPaywall);
-  openTransactionsButton?.addEventListener("click", actions.onOpenTransactions);
   setStatus("Aguardando briefing para iniciar a geração.");
 }

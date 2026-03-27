@@ -38,7 +38,7 @@ export function renderTransactionsScreen(input: {
         <div class="brand-row">
           <div class="brand">
             <div class="brand-mark">✦</div>
-            <span>Figma AI Carousel</span>
+            <span>Figma AI Ads</span>
           </div>
           <div class="badge">Extrato</div>
         </div>

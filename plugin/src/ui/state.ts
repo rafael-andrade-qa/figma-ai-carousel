@@ -1,9 +1,11 @@
 import type { AuthSessionSnapshot } from "../lib/supabase";
+import type { CreativeFormat } from "./creativeFormats";
 
 export type AppScreen =
   | "welcome"
   | "auth"
   | "creditsGranted"
+  | "selectFormat"
   | "dashboard"
   | "paywall"
   | "transactions";
@@ -19,6 +21,7 @@ export type AppState = {
   credits: number;
   pendingEmail: string | null;
   session: AuthSessionSnapshot | null;
+  selectedFormat: CreativeFormat | null;
 };
 
 const STORAGE_KEY = "figma-ai-carousel-ui-state";
@@ -29,6 +32,7 @@ const defaultState: AppState = {
   credits: 0,
   pendingEmail: null,
   session: null,
+  selectedFormat: null,
 };
 
 let state: AppState = loadState();
@@ -51,6 +55,10 @@ function loadState(): AppState {
       pendingEmail:
         typeof parsed.pendingEmail === "string" ? parsed.pendingEmail : null,
       session: parsed.session ?? null,
+      selectedFormat:
+        typeof parsed.selectedFormat === "string"
+          ? (parsed.selectedFormat as CreativeFormat)
+          : null,
     };
   } catch {
     return defaultState;
@@ -105,6 +113,16 @@ export function clearAuthenticatedSession() {
     user: null,
     credits: 0,
     pendingEmail: null,
+    selectedFormat: null,
+    currentScreen: "welcome",
+  };
+  persistState();
+}
+
+export function setCredits(credits: number) {
+  state = {
+    ...state,
+    credits: Math.max(0, Math.floor(credits)),
   };
   persistState();
 }
@@ -112,22 +130,15 @@ export function clearAuthenticatedSession() {
 export function consumeCredits(amount: number) {
   state = {
     ...state,
-    credits: Math.max(0, state.credits - amount),
+    credits: Math.max(0, state.credits - Math.max(0, Math.floor(amount))),
   };
   persistState();
 }
 
-export function setCredits(amount: number) {
+export function setSelectedFormat(format: CreativeFormat | null) {
   state = {
     ...state,
-    credits: Math.max(0, amount),
-  };
-  persistState();
-}
-
-export function resetSession() {
-  state = {
-    ...defaultState,
+    selectedFormat: format,
   };
   persistState();
 }

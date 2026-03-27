@@ -1,6 +1,6 @@
 {
-  "name": "Figma AI Carousel",
-  "id": "figma-ai-carousel-local",
+  "name": "Figma AI Ads",
+  "id": "figma-ai-ads-local",
   "api": "1.0.0",
   "main": "dist/code.js",
   "ui": "ui.html",
