@@ -1,5 +1,4 @@
 import {
-  getCreativeFormatLabel,
   getDashboardSubtitleByFormat,
   getDashboardTitleByFormat,
   getPromptPlaceholderByFormat,
@@ -19,187 +18,226 @@ export function renderDashboardScreen(input: {
   const heroSubtitle = getDashboardSubtitleByFormat(selectedFormat);
   const promptPlaceholder = getPromptPlaceholderByFormat(selectedFormat);
   const promptSuggestions = getPromptSuggestionsByFormat(selectedFormat);
-  const selectedFormatLabel = getCreativeFormatLabel(selectedFormat);
 
   const sectionTitle =
     selectedFormat === "carousel" ? "Briefing do carrossel" : "Briefing da peça";
 
   const brandingHelp =
     selectedFormat === "carousel"
-      ? "Esses dados controlam os textos fixos e a identidade visual do carrossel."
-      : "Esses dados controlam os textos fixos e a identidade visual da peça.";
-
-  const generateButtonLabel =
-    selectedFormat === "carousel" ? "Gerar carrossel" : "Gerar peça";
+      ? "Defina os textos fixos e a identidade visual usados na geração."
+      : "Defina os textos fixos e a identidade visual usados na peça.";
 
   const actionNote =
     selectedFormat === "carousel"
       ? "O plugin vai criar os frames direto no canvas do arquivo atual."
       : "O plugin vai criar a peça direto no canvas do arquivo atual.";
 
-  const footerNote =
-    selectedFormat === "carousel"
-      ? "V1 focada em geração rápida de carrosséis estratégicos para Instagram."
-      : "V1 evoluindo para uma plataforma de geração de criativos com IA.";
-
   return `
-    <div class="app-shell">
-      <div class="hero">
-        <div class="brand-row">
-          <div class="brand">
-            <div class="brand-mark">✦</div>
-            <span>Figma AI Ads</span>
-          </div>
-          <div class="badge">Plugin local • MVP</div>
-        </div>
-
+    <div class="app-shell dashboard-shell">
+      <section class="hero hero-compact dashboard-hero">
         <div class="dashboard-topbar">
-          <div class="balance-pill">
-            <span>Créditos</span>
-            <strong>${input.credits}</strong>
+          <div class="dashboard-topbar-left">
+            <div class="brand">
+              <div class="brand-mark">✦</div>
+              <span>Figma AI Ads</span>
+            </div>
           </div>
 
-          <div class="account-pill">
-            <span>${input.email ?? "Modo free"}</span>
-          </div>
-        </div>
+          <div class="dashboard-toolbar">
+            <button
+              id="changeFormatButton"
+              class="toolbar-button"
+              type="button"
+              title="Escolher formato"
+            >
+              <span class="toolbar-button-arrow">←</span>
+              <span>Formatos</span>
+            </button>
 
-        <div class="dashboard-hero-copy">
-          <div class="dashboard-format-pill">
-            Formato atual: <strong>${selectedFormatLabel}</strong>
-          </div>
+            <button
+              id="openPaywallFromToolbar"
+              class="toolbar-chip"
+              type="button"
+              title="Comprar créditos"
+            >
+              <span class="toolbar-chip-label">${input.credits} Créditos</span>
+            </button>
 
-          <h1>${heroTitle}</h1>
-          <p>${heroSubtitle}</p>
-
-          <div class="dashboard-secondary-actions">
-            <button id="changeFormatButton" class="ghost-button" type="button">
-              Trocar formato
+            <button
+              id="openTransactionsFromToolbar"
+              class="toolbar-button"
+              type="button"
+              title="Ver extrato"
+            >
+              Extrato
             </button>
           </div>
         </div>
-      </div>
 
-      <div class="content">
-        <div class="section">
-          <p class="section-title">${sectionTitle}</p>
-          <p class="section-help">
-            Escreva o tema, nicho, objetivo e tom. Quanto mais claro, melhor o resultado.
-          </p>
-
-          <label for="prompt">Prompt</label>
-          <textarea
-            id="prompt"
-            placeholder="${promptPlaceholder}"
-          ></textarea>
-
-          <div class="prompt-chips">
-            ${promptSuggestions
-              .map(
-                (item) => `
-                  <button
-                    type="button"
-                    class="chip-button"
-                    data-chip-value="${item}"
-                  >
-                    ${item}
-                  </button>
-                `
-              )
-              .join("")}
+        <div class="dashboard-hero-body">
+          <div class="dashboard-hero-copy">
+            <h1>${heroTitle}</h1>
+            <p>${heroSubtitle}</p>
           </div>
         </div>
+      </section>
 
-        <div class="section">
-          <p class="section-title">Branding</p>
-          <p class="section-help">
-            ${brandingHelp}
-          </p>
-
-          <div class="grid-2">
+      <div class="content dashboard-content">
+        <section class="section dashboard-primary-card">
+          <div class="dashboard-primary-head">
             <div>
-              <label for="seriesName">Nome da série</label>
-              <input id="seriesName" type="text" value="Nome da Série" />
+              <p class="dashboard-eyebrow">Geração principal</p>
+              <h2 class="dashboard-primary-title">${sectionTitle}</h2>
+              <p class="dashboard-primary-help">
+                Descreva com clareza o objetivo do criativo, a oferta, o público e o tom.
+              </p>
             </div>
 
-            <div>
-              <label for="profileHandle">Perfil</label>
-              <input id="profileHandle" type="text" value="@seuperfil" />
-            </div>
-
-            <div>
-              <label for="primaryColor">Cor principal</label>
-              <input id="primaryColor" type="text" value="#2E7BFF" />
-            </div>
-
-            <div>
-              <label for="template">Template</label>
-              <select id="template">
-                <option value="educational">Educational</option>
-                <option value="authority">Authority</option>
-                <option value="checklist">Checklist</option>
-                <option value="storytelling">Storytelling</option>
-                <option value="myth">Myth</option>
-              </select>
+            <div class="dashboard-summary-card">
+              <span class="dashboard-summary-label">Resumo da geração</span>
+              <strong id="generationSummary">5 slides • 1 crédito</strong>
             </div>
           </div>
 
           <div class="field-spacing">
-            <label for="ctaLabel">Texto do CTA</label>
-            <input id="ctaLabel" type="text" value="Agende sua consulta" />
+            <textarea
+              id="prompt"
+              placeholder="${promptPlaceholder}"
+            ></textarea>
           </div>
-        </div>
 
-        <div class="section">
-          <div class="section-row">
-            <div>
-              <p class="section-title">Quantidade de slides</p>
-              <p class="section-help">
-                3 e 5 cards consomem 1 crédito. 7 cards consome 2 créditos.
-              </p>
+          <div class="dashboard-chips-wrap">
+            <div class="dashboard-chips-label">Sugestões rápidas</div>
+            <div class="chips-row">
+              ${promptSuggestions
+                .map(
+                  (suggestion) => `
+                    <button
+                      type="button"
+                      class="chip-button"
+                      data-prompt="${suggestion}"
+                    >
+                      ${suggestion}
+                    </button>
+                  `
+                )
+                .join("")}
             </div>
+          </div>
 
-            <div style="display:flex; gap:10px; align-items:center;">
-              <button id="openTransactions" class="tiny-link-button" type="button">
-                Ver extrato
-              </button>
+          <div class="actions dashboard-actions">
+            <button id="generate" class="primary-button primary-button-lg" type="button">
+              ${selectedFormat === "carousel" ? "Gerar carrossel" : "Gerar peça"}
+            </button>
 
-              <button id="openPaywall" class="tiny-link-button" type="button">
-                Comprar créditos
-              </button>
+            <p class="action-note">${actionNote}</p>
+          </div>
+
+          <div id="statusCard" class="status-card dashboard-status-card">
+            <div class="status-top">
+              <span class="status-dot"></span>
+              <span class="status-label">Status</span>
             </div>
+            <div id="statusText" class="status-text"></div>
           </div>
+        </section>
 
-          <div class="cards-grid" id="cardsGrid">
-            <button class="cards-option" type="button" data-value="3">3</button>
-            <button class="cards-option active" type="button" data-value="5">5</button>
-            <button class="cards-option" type="button" data-value="7">7</button>
-          </div>
-        </div>
-
-        <div class="actions">
-          <button id="generate" class="primary-button" type="button">
-            ${generateButtonLabel}
+        <section class="section accordion-section" data-accordion="branding">
+          <button
+            type="button"
+            class="accordion-toggle"
+            data-accordion-trigger="branding"
+            aria-expanded="false"
+          >
+            <span class="accordion-copy">
+              <span class="section-title">Branding</span>
+              <span id="brandingSummary" class="accordion-summary">
+                Educational • #2E7BFF • @seuperfil
+              </span>
+            </span>
+            <span class="accordion-icon">⌄</span>
           </button>
 
-          <div class="action-note">
-            ${actionNote}
-          </div>
-        </div>
+          <div class="accordion-content" data-accordion-content="branding" hidden>
+            <p class="section-help">${brandingHelp}</p>
 
-        <div id="statusCard" class="status-card">
-          <div class="status-top">
-            <div class="status-dot"></div>
-            <div class="status-label">Status</div>
-          </div>
-          <div id="statusText" class="status-text">
-            Aguardando briefing para iniciar a geração.
-          </div>
-        </div>
+            <div class="grid-2">
+              <div>
+                <label class="field-label" for="seriesName">Nome da série</label>
+                <input id="seriesName" type="text" value="Nome da Série" />
+              </div>
 
-        <div class="footer-note">
-          ${footerNote}
-        </div>
+              <div>
+                <label class="field-label" for="profileHandle">Perfil</label>
+                <input id="profileHandle" type="text" value="@seuperfil" />
+              </div>
+            </div>
+
+            <div class="grid-2 field-spacing">
+              <div>
+                <label class="field-label" for="primaryColor">Cor principal</label>
+                <input id="primaryColor" type="text" value="#2E7BFF" />
+              </div>
+
+              <div>
+                <label class="field-label" for="template">Template</label>
+                <select id="template">
+                  <option value="educational" selected>Educational</option>
+                  <option value="authority">Authority</option>
+                  <option value="checklist">Checklist</option>
+                  <option value="myth">Myth</option>
+                  <option value="storytelling">Storytelling</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="field-spacing">
+              <label class="field-label" for="ctaLabel">CTA final</label>
+              <input id="ctaLabel" type="text" value="Agende sua consulta" />
+            </div>
+          </div>
+        </section>
+
+        <section class="section accordion-section" data-accordion="slides">
+          <button
+            type="button"
+            class="accordion-toggle"
+            data-accordion-trigger="slides"
+            aria-expanded="false"
+          >
+            <span class="accordion-copy">
+              <span class="section-title">Quantidade de slides</span>
+              <span id="slidesSummary" class="accordion-summary">5 slides • 1 crédito</span>
+            </span>
+            <span class="accordion-icon">⌄</span>
+          </button>
+
+          <div class="accordion-content" data-accordion-content="slides" hidden>
+            <p class="section-help">
+              Escolha a estrutura mais adequada para a profundidade do conteúdo.
+            </p>
+
+            <div id="cardsGrid" class="cards-grid">
+              <button type="button" class="cards-option" data-value="3">
+                <span class="cards-option-value">3</span>
+                <span class="cards-option-label">slides</span>
+                <span class="cards-option-meta">1 crédito</span>
+              </button>
+
+              <button type="button" class="cards-option active" data-value="5">
+                <span class="cards-option-value">5</span>
+                <span class="cards-option-label">slides</span>
+                <span class="cards-option-meta">1 crédito</span>
+              </button>
+
+              <button type="button" class="cards-option" data-value="7">
+                <span class="cards-option-value">7</span>
+                <span class="cards-option-label">slides</span>
+                <span class="cards-option-meta">2 créditos</span>
+              </button>
+            </div>
+          </div>
+        </section>
       </div>
     </div>
   `;

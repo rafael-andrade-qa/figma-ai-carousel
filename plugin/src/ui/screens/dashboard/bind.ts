@@ -32,11 +32,16 @@ export function bindDashboardScreen(actions: {
     primaryColorEl,
     templateEl,
     ctaLabelEl,
-    openPaywallButton,
-    openTransactionsButton,
+    openPaywallFromToolbarButton,
+    openTransactionsFromToolbarButton,
     changeFormatButton,
     cardsOptions,
     quickPromptButtons,
+    generationSummaryEl,
+    brandingSummaryEl,
+    slidesSummaryEl,
+    accordionTriggers,
+    accordionSections,
   } = dom;
 
   let selectedCards = 5;
@@ -71,6 +76,72 @@ export function bindDashboardScreen(actions: {
     generateButton.textContent = isLoading ? "Gerando..." : getGenerateButtonLabel();
   }
 
+  function getCardsLabel(cards: number) {
+    return `${cards} ${cards === 1 ? "slide" : "slides"}`;
+  }
+
+  function getCreditsLabel(credits: number) {
+    return `${credits} ${credits === 1 ? "crédito" : "créditos"}`;
+  }
+
+  function updateSlidesSummary() {
+    const creditsCost = getCreditsCost(selectedCards);
+    const summary = `${getCardsLabel(selectedCards)} • ${getCreditsLabel(creditsCost)}`;
+
+    generationSummaryEl && (generationSummaryEl.textContent = summary);
+    slidesSummaryEl && (slidesSummaryEl.textContent = summary);
+  }
+
+  function updateBrandingSummary() {
+    if (!brandingSummaryEl) {
+      return;
+    }
+
+    const templateLabel = templateEl?.selectedOptions?.[0]?.textContent?.trim() || "Educational";
+    const primaryColor = primaryColorEl?.value?.trim() || "#2E7BFF";
+    const profileHandle = profileHandleEl?.value?.trim() || "@seuperfil";
+
+    brandingSummaryEl.textContent = `${templateLabel} • ${primaryColor} • ${profileHandle}`;
+  }
+
+  function toggleAccordion(name: string) {
+    const section = accordionSections.find(
+      (item) => item.dataset.accordion === name
+    );
+
+    if (!section) {
+      return;
+    }
+
+    const content = section.querySelector<HTMLElement>("[data-accordion-content]");
+    const trigger = section.querySelector<HTMLButtonElement>("[data-accordion-trigger]");
+    const isOpen = section.classList.contains("is-open");
+    const nextIsOpen = !isOpen;
+
+    section.classList.toggle("is-open", nextIsOpen);
+
+    if (content) {
+      content.hidden = !nextIsOpen;
+    }
+
+    if (trigger) {
+      trigger.setAttribute("aria-expanded", String(nextIsOpen));
+    }
+  }
+
+  function bindAccordions() {
+    accordionTriggers.forEach((trigger) => {
+      trigger.addEventListener("click", () => {
+        const target = trigger.dataset.accordionTrigger;
+        if (!target) {
+          return;
+        }
+
+        toggleAccordion(target);
+      });
+    });
+  }
+
   function setCards(value: number) {
     selectedCards = value;
 
@@ -78,6 +149,8 @@ export function bindDashboardScreen(actions: {
       const buttonValue = Number(button.dataset.value);
       button.classList.toggle("active", buttonValue === selectedCards);
     });
+
+    updateSlidesSummary();
   }
 
   function postGenerateMessage() {
@@ -91,7 +164,8 @@ export function bindDashboardScreen(actions: {
     const prompt = promptEl?.value.trim() || "";
 
     if (!validatePrompt(prompt)) {
-      setStatus("Digite um prompt antes de gerar o carrossel.", "error");
+      setStatus("Digite um briefing antes de gerar o carrossel.", "error");
+      promptEl?.focus();
       return;
     }
 
@@ -124,44 +198,30 @@ export function bindDashboardScreen(actions: {
     });
 
     pendingCreditsCost = creditsCost;
-
     setLoading(true);
-    setStatus("Enviando briefing para o plugin...");
-
-    parent.postMessage(
-      {
-        pluginMessage: message,
-      },
-      "*"
+    setStatus(
+      `Gerando ${getCardsLabel(selectedCards)} com custo de ${getCreditsLabel(creditsCost)}...`
     );
+
+    parent.postMessage({ pluginMessage: message }, "*");
   }
 
   function bindCardsGrid() {
-    if (!cardsGrid) {
-      return;
-    }
+    cardsOptions.forEach((button) => {
+      button.addEventListener("click", () => {
+        const value = Number(button.dataset.value);
 
-    cardsGrid.addEventListener("click", (event) => {
-      const target = event.target as HTMLElement | null;
-      const button = target?.closest(".cards-option") as HTMLButtonElement | null;
+        if (!Number.isFinite(value)) {
+          return;
+        }
 
-      if (!button) {
-        return;
-      }
-
-      const value = Number(button.dataset.value);
-
-      if (!Number.isFinite(value)) {
-        return;
-      }
-
-      setCards(value);
-
-      const cost = getCreditsCost(value);
-
-      setStatus(
-        `Essa geração vai consumir ${cost} crédito${cost > 1 ? "s" : ""}.`
-      );
+        setCards(value);
+        setStatus(
+          `${getCardsLabel(value)} selecionados. Essa geração consome ${getCreditsLabel(
+            getCreditsCost(value)
+          )}.`
+        );
+      });
     });
   }
 
@@ -172,7 +232,12 @@ export function bindDashboardScreen(actions: {
           return;
         }
 
-        const chipValue = button.dataset.chipValue || "";
+        const chipValue = button.dataset.prompt?.trim();
+
+        if (!chipValue) {
+          return;
+        }
+
         const currentPrompt = promptEl.value.trim();
 
         promptEl.value = currentPrompt
@@ -180,7 +245,7 @@ export function bindDashboardScreen(actions: {
           : chipValue;
 
         promptEl.focus();
-        setStatus(`Sugestão "${chipValue}" adicionada ao prompt.`);
+        setStatus(`Sugestão "${chipValue}" adicionada ao briefing.`);
       });
     });
   }
@@ -192,6 +257,19 @@ export function bindDashboardScreen(actions: {
 
     generateButton.addEventListener("click", () => {
       postGenerateMessage();
+    });
+  }
+
+  function bindBrandingFields() {
+    [
+      seriesNameEl,
+      profileHandleEl,
+      primaryColorEl,
+      templateEl,
+      ctaLabelEl,
+    ].forEach((field) => {
+      field?.addEventListener("input", updateBrandingSummary);
+      field?.addEventListener("change", updateBrandingSummary);
     });
   }
 
@@ -244,13 +322,16 @@ export function bindDashboardScreen(actions: {
   }
 
   changeFormatButton?.addEventListener("click", actions.onChangeFormat);
-  openPaywallButton?.addEventListener("click", actions.onOpenPaywall);
-  openTransactionsButton?.addEventListener("click", actions.onOpenTransactions);
+  openPaywallFromToolbarButton?.addEventListener("click", actions.onOpenPaywall);
+  openTransactionsFromToolbarButton?.addEventListener("click", actions.onOpenTransactions);
 
   setCards(selectedCards);
+  updateBrandingSummary();
+  bindAccordions();
   bindCardsGrid();
   bindQuickPrompts();
   bindGenerateButton();
+  bindBrandingFields();
   bindPluginMessages();
   setStatus("Aguardando briefing para iniciar a geração.");
 }

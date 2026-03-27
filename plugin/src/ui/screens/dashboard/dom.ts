@@ -12,9 +12,17 @@ export function getDashboardDom() {
     templateEl: document.getElementById("template") as HTMLSelectElement | null,
     ctaLabelEl: document.getElementById("ctaLabel") as HTMLInputElement | null,
 
-    openPaywallButton: document.getElementById("openPaywall") as HTMLButtonElement | null,
-    openTransactionsButton: document.getElementById("openTransactions") as HTMLButtonElement | null,
+    openPaywallFromToolbarButton: document.getElementById(
+      "openPaywallFromToolbar"
+    ) as HTMLButtonElement | null,
+    openTransactionsFromToolbarButton: document.getElementById(
+      "openTransactionsFromToolbar"
+    ) as HTMLButtonElement | null,
     changeFormatButton: document.getElementById("changeFormatButton") as HTMLButtonElement | null,
+
+    generationSummaryEl: document.getElementById("generationSummary") as HTMLDivElement | null,
+    brandingSummaryEl: document.getElementById("brandingSummary") as HTMLDivElement | null,
+    slidesSummaryEl: document.getElementById("slidesSummary") as HTMLDivElement | null,
 
     cardsOptions: Array.from(
       document.querySelectorAll<HTMLButtonElement>(".cards-option")
@@ -22,6 +30,14 @@ export function getDashboardDom() {
 
     quickPromptButtons: Array.from(
       document.querySelectorAll<HTMLButtonElement>(".chip-button")
+    ),
+
+    accordionTriggers: Array.from(
+      document.querySelectorAll<HTMLButtonElement>("[data-accordion-trigger]")
+    ),
+
+    accordionSections: Array.from(
+      document.querySelectorAll<HTMLElement>(".accordion-section")
     ),
   };
 }
