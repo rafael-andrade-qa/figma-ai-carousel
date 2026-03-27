@@ -44,9 +44,27 @@ import {
 } from "./screens/selectFormat";
 
 import { isCreativeFormatAvailableNow } from "./creativeFormats";
+import { showToast } from "./toast";
+
+const OTP_RESEND_COOLDOWN_MS = 60_000;
+let otpResendAvailableAt = 0;
 
 function getRoot() {
   return document.getElementById("app-root");
+}
+
+function startOtpResendCooldown() {
+  otpResendAvailableAt = Date.now() + OTP_RESEND_COOLDOWN_MS;
+}
+
+function getOtpResendCooldownSeconds() {
+  const remainingMs = otpResendAvailableAt - Date.now();
+
+  if (remainingMs <= 0) {
+    return 0;
+  }
+
+  return Math.ceil(remainingMs / 1000);
 }
 
 async function loadDashboardData(accessToken: string) {
@@ -134,16 +152,24 @@ export async function renderApp() {
   if (state.currentScreen === "auth") {
     root.innerHTML = renderAuthScreen({
       email: state.pendingEmail,
+      resendCooldownSeconds: getOtpResendCooldownSeconds(),
     });
 
     bindAuthScreen({
       onRequestCode: async (email: string) => {
         try {
           await requestEmailOtp(email);
+          startOtpResendCooldown();
           setPendingEmail(email);
           await renderApp();
         } catch (error) {
           console.error("[UI] Erro ao solicitar código OTP:", error);
+
+          showToast({
+            title: "Não foi possível enviar o código",
+            message: "Confira seu email e tente novamente.",
+            variant: "error",
+          });
         }
       },
 
@@ -162,15 +188,16 @@ export async function renderApp() {
           const creditsResult = await requestCredits(session.accessToken);
           setCredits(creditsResult.credits);
 
-          if (creditsResult.credits > 0) {
-            setScreen("selectFormat");
-          } else {
-            setScreen("paywall");
-          }
-
+          setScreen("selectFormat");
           await renderApp();
         } catch (error) {
           console.error("[UI] Erro ao verificar OTP:", error);
+
+          showToast({
+            title: "Código inválido",
+            message: "O código informado não é válido. Tente novamente.",
+            variant: "error",
+          });
         }
       },
 
@@ -182,16 +209,37 @@ export async function renderApp() {
             return;
           }
 
+          if (getOtpResendCooldownSeconds() > 0) {
+            return;
+          }
+
           await requestEmailOtp(email);
+          startOtpResendCooldown();
+          await renderApp();
+
+          showToast({
+            title: "Código reenviado",
+            message: "Enviamos um novo código para o seu email.",
+            variant: "success",
+          });
         } catch (error) {
           console.error("[UI] Erro ao reenviar código OTP:", error);
+
+          showToast({
+            title: "Não foi possível reenviar",
+            message: "Tente novamente em instantes.",
+            variant: "error",
+          });
         }
       },
 
       onChangeEmail: () => {
+        otpResendAvailableAt = 0;
         setPendingEmail(null);
         void renderApp();
       },
+    }, {
+      getResendCooldownSeconds: getOtpResendCooldownSeconds,
     });
 
     return;
@@ -202,12 +250,7 @@ export async function renderApp() {
 
     bindCreditsGrantedScreen({
       onContinue: () => {
-        if (state.credits > 0) {
-          setScreen("selectFormat");
-        } else {
-          setScreen("paywall");
-        }
-
+        setScreen("selectFormat");
         void renderApp();
       },
     });
@@ -229,18 +272,32 @@ export async function renderApp() {
         setSelectedFormat(format);
 
         if (!isCreativeFormatAvailableNow(format)) {
-          window.alert("Esse formato entra em breve 🚀");
+          showToast({
+            title: "Em breve",
+            message: "Esse formato ainda não está disponível.",
+            variant: "info",
+          });
+          return;
         }
 
+        setScreen("dashboard");
         await renderApp();
       },
 
       onContinue: async () => {
         const currentState = getState();
-        const selectedFormat = currentState.selectedFormat ?? "carousel";
+        const selectedFormat = currentState.selectedFormat;
+
+        if (!selectedFormat) {
+          return;
+        }
 
         if (!isCreativeFormatAvailableNow(selectedFormat)) {
-          window.alert("Esse formato ainda não está disponível. Use Carrossel por enquanto.");
+          showToast({
+            title: "Em breve",
+            message: "Esse formato ainda não está disponível.",
+            variant: "info",
+          });
           return;
         }
 
@@ -294,11 +351,6 @@ export async function renderApp() {
           const result = await requestCredits(accessToken);
 
           setCredits(result.credits);
-
-          if (result.credits > 0) {
-            setScreen("dashboard");
-          }
-
           await renderApp();
         } catch (error) {
           console.error("[UI] Erro ao atualizar créditos:", error);
@@ -406,11 +458,7 @@ export async function bootstrapApp() {
       const creditsResult = await requestCredits(accessToken);
       setCredits(creditsResult.credits);
 
-      if (creditsResult.credits > 0) {
-        setScreen("selectFormat");
-      } else {
-        setScreen("paywall");
-      }
+      setScreen("selectFormat");
     } catch (error) {
       console.error("[UI] Erro ao restaurar sessão:", error);
       setScreen("auth");
@@ -422,19 +470,14 @@ export async function bootstrapApp() {
   onSupabaseAuthStateChange((session) => {
     if (!session) {
       clearAuthenticatedSession();
+      otpResendAvailableAt = 0;
       setScreen("welcome");
       void renderApp();
       return;
     }
 
     setAuthenticatedSession(session);
-
-    if (getState().credits > 0) {
-      setScreen("selectFormat");
-    } else {
-      setScreen("paywall");
-    }
-
+    setScreen("selectFormat");
     void renderApp();
   });
 
@@ -444,6 +487,7 @@ export async function bootstrapApp() {
 export async function logoutFromApp() {
   await signOutSupabase();
   clearAuthenticatedSession();
+  otpResendAvailableAt = 0;
   setScreen("auth");
   await renderApp();
 }

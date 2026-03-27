@@ -8,8 +8,11 @@ type AuthActions = {
 export function renderAuthScreen(params: {
   email: string | null;
   error?: string | null;
+  resendCooldownSeconds?: number;
 }) {
   const hasEmail = Boolean(params.email);
+  const resendCooldownSeconds = Math.max(0, params.resendCooldownSeconds ?? 0);
+  const canResend = resendCooldownSeconds === 0;
 
   return `
     <div class="app-shell">
@@ -56,10 +59,24 @@ export function renderAuthScreen(params: {
             </p>
 
             <label for="authCode">Código</label>
-            <input id="authCode" type="text" inputmode="numeric" maxlength="8" placeholder="12345678" />
+            <input
+              id="authCode"
+              type="text"
+              inputmode="numeric"
+              maxlength="8"
+              placeholder="12345678"
+              autocomplete="one-time-code"
+            />
 
             <div class="inline-helper">
-              Não recebeu? <button id="resendInline" class="inline-link-button" type="button">Clique aqui.</button>
+              Não recebeu?
+              <span id="resendSlot">
+                ${
+                  canResend
+                    ? `<button id="resendInline" class="inline-link-button" type="button">Clique aqui.</button>`
+                    : `<span id="resendCountdown" class="inline-helper-countdown">Reenviar em ${resendCooldownSeconds}s</span>`
+                }
+              </span>
             </div>
           </div>
         `
@@ -84,7 +101,6 @@ export function renderAuthScreen(params: {
             !hasEmail
               ? `<button id="requestCode" class="primary-button" type="button">Continuar</button>`
               : `
-                <button id="verifyCode" class="primary-button" type="button">Entrar</button>
                 <button id="changeEmail" class="ghost-button" type="button">Trocar email</button>
               `
           }
@@ -94,31 +110,80 @@ export function renderAuthScreen(params: {
   `;
 }
 
-export function bindAuthScreen(actions: AuthActions) {
+export function bindAuthScreen(
+  actions: AuthActions,
+  options?: {
+    getResendCooldownSeconds?: () => number;
+  }
+) {
   const emailInput = document.getElementById("authEmail") as HTMLInputElement | null;
   const codeInput = document.getElementById("authCode") as HTMLInputElement | null;
+  const resendSlot = document.getElementById("resendSlot");
+
+  let isVerifyingCode = false;
+  let cooldownIntervalId: number | null = null;
 
   document.getElementById("requestCode")?.addEventListener("click", async () => {
     const email = emailInput?.value?.trim() ?? "";
     await actions.onRequestCode(email);
   });
 
-  document.getElementById("verifyCode")?.addEventListener("click", async () => {
-    const code = codeInput?.value?.trim() ?? "";
-    await actions.onVerifyCode(code);
-  });
+  function bindResendInlineButton() {
+    document.getElementById("resendInline")?.addEventListener("click", async () => {
+      await actions.onResendCode();
+    });
+  }
 
-  document.getElementById("resendInline")?.addEventListener("click", async () => {
-    await actions.onResendCode();
-  });
+  bindResendInlineButton();
 
   document.getElementById("changeEmail")?.addEventListener("click", () => {
+    if (cooldownIntervalId) {
+      window.clearInterval(cooldownIntervalId);
+      cooldownIntervalId = null;
+    }
+
     actions.onChangeEmail();
   });
 
-  codeInput?.addEventListener("input", () => {
-    if (codeInput.value.length === 8) {
-      void actions.onVerifyCode(codeInput.value);
+  codeInput?.addEventListener("input", async () => {
+    const code = codeInput.value.trim();
+
+    if (code.length !== 8 || isVerifyingCode) {
+      return;
+    }
+
+    isVerifyingCode = true;
+
+    try {
+      await actions.onVerifyCode(code);
+    } finally {
+      isVerifyingCode = false;
     }
   });
+
+  if (resendSlot && options?.getResendCooldownSeconds) {
+    const renderResendState = () => {
+      const remainingSeconds = options.getResendCooldownSeconds?.() ?? 0;
+
+      if (remainingSeconds > 0) {
+        resendSlot.innerHTML = `<span id="resendCountdown" class="inline-helper-countdown">Reenviar em ${remainingSeconds}s</span>`;
+        return;
+      }
+
+      resendSlot.innerHTML = `<button id="resendInline" class="inline-link-button" type="button">Clique aqui.</button>`;
+      bindResendInlineButton();
+    };
+
+    renderResendState();
+
+    cooldownIntervalId = window.setInterval(() => {
+      const remainingSeconds = options.getResendCooldownSeconds?.() ?? 0;
+      renderResendState();
+
+      if (remainingSeconds <= 0 && cooldownIntervalId) {
+        window.clearInterval(cooldownIntervalId);
+        cooldownIntervalId = null;
+      }
+    }, 1000);
+  }
 }
