@@ -1,0 +1,38 @@
+.section {
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: 14px;
+}
+
+.section-title {
+  margin: 0 0 4px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.section-help {
+  margin: 0 0 12px;
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.section-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.actions {
+  display: grid;
+  gap: 12px;
+}
+
+.action-note {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.45;
+}

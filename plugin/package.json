@@ -16,6 +16,6 @@
     "typescript": "^5.9.3"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.99.2"
+    "@supabase/gotrue-js": "^2.75.0"
   }
 }

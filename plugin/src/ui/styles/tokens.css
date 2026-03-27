@@ -1,0 +1,17 @@
+:root {
+  --bg: #0b1020;
+  --panel: rgba(255, 255, 255, 0.9);
+  --panel-2: rgba(255, 255, 255, 0.72);
+  --text: #0f172a;
+  --muted: #64748b;
+  --line: rgba(15, 23, 42, 0.12);
+  --primary: #2e7bff;
+  --primary-hover: #1f6cf0;
+  --success: #0f9d58;
+  --error: #d93025;
+  --shadow: 0 18px 50px rgba(15, 23, 42, 0.22);
+  --radius-xl: 24px;
+  --radius-lg: 18px;
+  --radius-md: 14px;
+  --radius-sm: 12px;
+}

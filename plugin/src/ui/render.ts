@@ -16,7 +16,6 @@ import {
 } from "./state";
 import {
   getAccessTokenOrThrow,
-  getCurrentSessionSnapshot,
   onSupabaseAuthStateChange,
   requestEmailOtp,
   signOutSupabase,
@@ -45,90 +44,21 @@ import {
 
 import { isCreativeFormatAvailableNow } from "./creativeFormats";
 import { showToast } from "./toast";
-
-const OTP_RESEND_COOLDOWN_MS = 60_000;
-let otpResendAvailableAt = 0;
-
-function getRoot() {
-  return document.getElementById("app-root");
-}
-
-function startOtpResendCooldown() {
-  otpResendAvailableAt = Date.now() + OTP_RESEND_COOLDOWN_MS;
-}
-
-function getOtpResendCooldownSeconds() {
-  const remainingMs = otpResendAvailableAt - Date.now();
-
-  if (remainingMs <= 0) {
-    return 0;
-  }
-
-  return Math.ceil(remainingMs / 1000);
-}
-
-async function loadDashboardData(accessToken: string) {
-  const [creditsResult, transactionsResult] = await Promise.all([
-    requestCredits(accessToken),
-    requestTransactions(accessToken),
-  ]);
-
-  setCredits(creditsResult.credits);
-
-  return {
-    credits: creditsResult.credits,
-    transactions: transactionsResult.transactions,
-  };
-}
-
-function openExternalUrl(url: string) {
-  window.open(url, "_blank", "noopener,noreferrer");
-}
-
-async function pollCreditsAfterCheckout(
-  accessToken: string,
-  attempts = 8,
-  delayMs = 2500
-) {
-  for (let attempt = 0; attempt < attempts; attempt += 1) {
-    try {
-      const result = await requestCredits(accessToken);
-
-      if (result.credits > getState().credits) {
-        setCredits(result.credits);
-
-        return {
-          updated: true,
-          credits: result.credits,
-        };
-      }
-    } catch (error) {
-      console.error("[UI] Erro ao consultar créditos após checkout:", error);
-    }
-
-    await new Promise((resolve) => window.setTimeout(resolve, delayMs));
-  }
-
-  return {
-    updated: false,
-    credits: getState().credits,
-  };
-}
-
-export async function syncSessionWithSupabase() {
-  const snapshot = await getCurrentSessionSnapshot();
-
-  if (!snapshot) {
-    clearAuthenticatedSession();
-    return null;
-  }
-
-  setAuthenticatedSession(snapshot);
-  return snapshot;
-}
+import { getAppRoot } from "./services/appRoot";
+import {
+  getOtpResendCooldownSeconds,
+  resetOtpResendCooldown,
+  startOtpResendCooldown,
+} from "./services/otpCooldown";
+import { syncSessionWithSupabase } from "./services/session";
+import { loadDashboardData } from "./services/dashboardData";
+import {
+  openExternalUrl,
+  pollCreditsAfterCheckout,
+} from "./services/checkout";
 
 export async function renderApp() {
-  const root = getRoot();
+  const root = getAppRoot();
 
   if (!root) {
     return;
@@ -155,92 +85,95 @@ export async function renderApp() {
       resendCooldownSeconds: getOtpResendCooldownSeconds(),
     });
 
-    bindAuthScreen({
-      onRequestCode: async (email: string) => {
-        try {
-          await requestEmailOtp(email);
-          startOtpResendCooldown();
-          setPendingEmail(email);
-          await renderApp();
-        } catch (error) {
-          console.error("[UI] Erro ao solicitar código OTP:", error);
+    bindAuthScreen(
+      {
+        onRequestCode: async (email: string) => {
+          try {
+            await requestEmailOtp(email);
+            startOtpResendCooldown();
+            setPendingEmail(email);
+            await renderApp();
+          } catch (error) {
+            console.error("[UI] Erro ao solicitar código OTP:", error);
 
-          showToast({
-            title: "Não foi possível enviar o código",
-            message: "Confira seu email e tente novamente.",
-            variant: "error",
-          });
-        }
-      },
-
-      onVerifyCode: async (code: string) => {
-        try {
-          const email = getState().pendingEmail;
-
-          if (!email) {
-            return;
+            showToast({
+              title: "Não foi possível enviar o código",
+              message: "Confira seu email e tente novamente.",
+              variant: "error",
+            });
           }
+        },
 
-          const session = await verifyEmailOtp(email, code);
+        onVerifyCode: async (code: string) => {
+          try {
+            const email = getState().pendingEmail;
 
-          setAuthenticatedSession(session);
+            if (!email) {
+              return;
+            }
 
-          const creditsResult = await requestCredits(session.accessToken);
-          setCredits(creditsResult.credits);
+            const session = await verifyEmailOtp(email, code);
 
-          setScreen("selectFormat");
-          await renderApp();
-        } catch (error) {
-          console.error("[UI] Erro ao verificar OTP:", error);
+            setAuthenticatedSession(session);
 
-          showToast({
-            title: "Código inválido",
-            message: "O código informado não é válido. Tente novamente.",
-            variant: "error",
-          });
-        }
-      },
+            const creditsResult = await requestCredits(session.accessToken);
+            setCredits(creditsResult.credits);
 
-      onResendCode: async () => {
-        try {
-          const email = getState().pendingEmail;
+            setScreen("selectFormat");
+            await renderApp();
+          } catch (error) {
+            console.error("[UI] Erro ao verificar OTP:", error);
 
-          if (!email) {
-            return;
+            showToast({
+              title: "Código inválido",
+              message: "O código informado não é válido. Tente novamente.",
+              variant: "error",
+            });
           }
+        },
 
-          if (getOtpResendCooldownSeconds() > 0) {
-            return;
+        onResendCode: async () => {
+          try {
+            const email = getState().pendingEmail;
+
+            if (!email) {
+              return;
+            }
+
+            if (getOtpResendCooldownSeconds() > 0) {
+              return;
+            }
+
+            await requestEmailOtp(email);
+            startOtpResendCooldown();
+            await renderApp();
+
+            showToast({
+              title: "Código reenviado",
+              message: "Enviamos um novo código para o seu email.",
+              variant: "success",
+            });
+          } catch (error) {
+            console.error("[UI] Erro ao reenviar código OTP:", error);
+
+            showToast({
+              title: "Não foi possível reenviar",
+              message: "Tente novamente em instantes.",
+              variant: "error",
+            });
           }
+        },
 
-          await requestEmailOtp(email);
-          startOtpResendCooldown();
-          await renderApp();
-
-          showToast({
-            title: "Código reenviado",
-            message: "Enviamos um novo código para o seu email.",
-            variant: "success",
-          });
-        } catch (error) {
-          console.error("[UI] Erro ao reenviar código OTP:", error);
-
-          showToast({
-            title: "Não foi possível reenviar",
-            message: "Tente novamente em instantes.",
-            variant: "error",
-          });
-        }
+        onChangeEmail: () => {
+          resetOtpResendCooldown();
+          setPendingEmail(null);
+          void renderApp();
+        },
       },
-
-      onChangeEmail: () => {
-        otpResendAvailableAt = 0;
-        setPendingEmail(null);
-        void renderApp();
-      },
-    }, {
-      getResendCooldownSeconds: getOtpResendCooldownSeconds,
-    });
+      {
+        getResendCooldownSeconds: getOtpResendCooldownSeconds,
+      }
+    );
 
     return;
   }
@@ -392,12 +325,9 @@ export async function renderApp() {
     return;
   }
 
-  let transactions: CreditTransaction[] = [];
-
   try {
     const accessToken = await getAccessTokenOrThrow();
-    const dashboardData = await loadDashboardData(accessToken);
-    transactions = dashboardData.transactions;
+    await loadDashboardData(accessToken);
   } catch (error) {
     console.error("[UI] Erro ao carregar dashboard:", error);
   }
@@ -431,7 +361,6 @@ export async function renderApp() {
         const accessToken = await getAccessTokenOrThrow();
         const dashboardData = await loadDashboardData(accessToken);
         setCredits(dashboardData.credits);
-        transactions = dashboardData.transactions;
       } catch (error) {
         console.error("[UI] Erro ao sincronizar dashboard:", error);
       }
@@ -448,7 +377,12 @@ export async function renderApp() {
 }
 
 export async function bootstrapApp() {
-  await syncSessionWithSupabase();
+  try {
+    await syncSessionWithSupabase();
+  } catch (error) {
+    console.error("[UI] Erro ao sincronizar sessão com Supabase:", error);
+    clearAuthenticatedSession();
+  }
 
   const state = getState();
 
@@ -461,6 +395,7 @@ export async function bootstrapApp() {
       setScreen("selectFormat");
     } catch (error) {
       console.error("[UI] Erro ao restaurar sessão:", error);
+      clearAuthenticatedSession();
       setScreen("auth");
     }
   } else {
@@ -470,7 +405,7 @@ export async function bootstrapApp() {
   onSupabaseAuthStateChange((session) => {
     if (!session) {
       clearAuthenticatedSession();
-      otpResendAvailableAt = 0;
+      resetOtpResendCooldown();
       setScreen("welcome");
       void renderApp();
       return;
@@ -487,7 +422,7 @@ export async function bootstrapApp() {
 export async function logoutFromApp() {
   await signOutSupabase();
   clearAuthenticatedSession();
-  otpResendAvailableAt = 0;
+  resetOtpResendCooldown();
   setScreen("auth");
   await renderApp();
 }

@@ -1,0 +1,64 @@
+.dashboard-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.balance-pill,
+.account-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.06);
+  color: #334155;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.balance-pill strong {
+  color: #0f172a;
+}
+
+.account-pill {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cards-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.cards-option {
+  appearance: none;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  background: rgba(255, 255, 255, 0.88);
+  border-radius: 14px;
+  padding: 12px 0;
+  font: inherit;
+  font-weight: 700;
+  font-size: 14px;
+  color: #334155;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.cards-option:hover {
+  border-color: rgba(46, 123, 255, 0.3);
+  background: rgba(46, 123, 255, 0.08);
+}
+
+.cards-option.active {
+  background: linear-gradient(135deg, #2e7bff, #5c33ff);
+  color: white;
+  border-color: transparent;
+  box-shadow: 0 10px 24px rgba(46, 123, 255, 0.24);
+}

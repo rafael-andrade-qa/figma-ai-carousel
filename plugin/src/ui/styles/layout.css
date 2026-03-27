@@ -1,0 +1,107 @@
+.app {
+  background: var(--panel);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  backdrop-filter: blur(18px);
+}
+
+.app-shell {
+  background: var(--panel);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  backdrop-filter: blur(18px);
+}
+
+.hero {
+  position: relative;
+  padding: 20px 20px 18px;
+  background:
+    linear-gradient(135deg, rgba(46, 123, 255, 0.14), rgba(92, 51, 255, 0.06)),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(255, 255, 255, 0.88));
+  border-bottom: 1px solid var(--line);
+}
+
+.brand-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: 0.01em;
+}
+
+.brand-mark {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  color: white;
+  background: linear-gradient(135deg, #2e7bff, #5c33ff);
+  box-shadow: 0 8px 24px rgba(46, 123, 255, 0.28);
+  font-size: 14px;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.06);
+  color: #334155;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.hero h1 {
+  margin: 0 0 8px;
+  font-size: 30px;
+  line-height: 1.04;
+  letter-spacing: -0.03em;
+}
+
+.hero p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.content {
+  padding: 18px;
+  display: grid;
+  gap: 16px;
+}
+
+.hero-centered {
+  padding: 24px 20px 28px;
+}
+
+.hero-compact {
+  padding: 20px 20px 18px;
+  background:
+    linear-gradient(135deg, rgba(46, 123, 255, 0.14), rgba(92, 51, 255, 0.06)),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(255, 255, 255, 0.88));
+  border-bottom: 1px solid var(--line);
+}
+
+.hero-centered-content {
+  display: grid;
+  gap: 16px;
+  text-align: center;
+  padding-top: 8px;
+}

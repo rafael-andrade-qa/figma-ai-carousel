@@ -1,0 +1,56 @@
+input,
+select,
+textarea {
+  width: 100%;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.88);
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.5;
+  padding: 12px 14px;
+  outline: none;
+  transition: 0.2s ease;
+}
+
+textarea {
+  min-height: 146px;
+  resize: vertical;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: rgba(46, 123, 255, 0.45);
+  box-shadow: 0 0 0 4px rgba(46, 123, 255, 0.12);
+}
+
+.grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.field-spacing {
+  margin-top: 12px;
+}
+
+.inline-error {
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--error);
+  font-weight: 600;
+}
+
+.inline-helper {
+  margin-top: 12px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.inline-helper-countdown {
+  color: var(--muted);
+  font-weight: 600;
+}

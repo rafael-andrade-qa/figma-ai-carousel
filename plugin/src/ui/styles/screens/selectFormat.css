@@ -1,0 +1,135 @@
+.select-format-hero {
+  padding: 20px 20px 18px;
+}
+
+.select-hero-copy {
+  max-width: 470px;
+}
+
+.select-format-content {
+  padding: 18px 18px 22px;
+  display: grid;
+  gap: 18px;
+}
+
+.select-section {
+  display: grid;
+  gap: 14px;
+}
+
+.select-section-heading h2 {
+  margin: 0 0 10px;
+  font-size: 24px;
+  line-height: 1.08;
+  letter-spacing: -0.03em;
+  color: #0f172a;
+}
+
+.select-section-heading .section-help {
+  margin: 0;
+  max-width: 520px;
+}
+
+.format-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.format-card {
+  width: 100%;
+  min-height: 136px;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  background: rgba(255, 255, 255, 0.82);
+  border-radius: 20px;
+  padding: 14px 14px 16px;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    transform 0.16s ease,
+    border-color 0.16s ease,
+    box-shadow 0.16s ease,
+    background 0.16s ease;
+}
+
+.format-card:hover {
+  transform: translateY(-1px);
+  border-color: rgba(46, 123, 255, 0.28);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+  background: rgba(255, 255, 255, 0.94);
+}
+
+.format-card.is-locked {
+  opacity: 0.96;
+}
+
+.format-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.format-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 13px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(
+    135deg,
+    rgba(46, 123, 255, 0.16),
+    rgba(92, 51, 255, 0.14)
+  );
+  color: #1e293b;
+  font-weight: 800;
+  font-size: 15px;
+  flex: 0 0 auto;
+}
+
+.format-icon.muted {
+  background: rgba(148, 163, 184, 0.14);
+  color: #475569;
+}
+
+.format-badge {
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+
+.format-badge.available {
+  background: rgba(15, 157, 88, 0.12);
+  color: var(--success);
+}
+
+.format-badge.soon {
+  background: rgba(15, 23, 42, 0.06);
+  color: #64748b;
+}
+
+.format-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-right: 4px;
+}
+
+.format-card-body strong {
+  font-size: 15px;
+  line-height: 1.2;
+  color: var(--text);
+  letter-spacing: -0.01em;
+}
+
+.format-card-body span {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--muted);
+}
