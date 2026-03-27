@@ -30,6 +30,7 @@ export function bindDashboardScreen(actions: {
     seriesNameEl,
     profileHandleEl,
     primaryColorEl,
+    primaryColorPickerEl,
     templateEl,
     ctaLabelEl,
     openPaywallFromToolbarButton,
@@ -84,6 +85,23 @@ export function bindDashboardScreen(actions: {
     return `${credits} ${credits === 1 ? "crédito" : "créditos"}`;
   }
 
+  function normalizeHexColor(value?: string | null) {
+    const raw = (value ?? "").trim();
+
+    if (!raw) {
+      return "#2E7BFF";
+    }
+
+    const withHash = raw.startsWith("#") ? raw : `#${raw}`;
+    const normalized = withHash.toUpperCase();
+
+    if (/^#[0-9A-F]{6}$/.test(normalized)) {
+      return normalized;
+    }
+
+    return "#2E7BFF";
+  }
+
   function updateSlidesSummary() {
     const creditsCost = getCreditsCost(selectedCards);
     const summary = `${getCardsLabel(selectedCards)} • ${getCreditsLabel(creditsCost)}`;
@@ -92,16 +110,51 @@ export function bindDashboardScreen(actions: {
     slidesSummaryEl && (slidesSummaryEl.textContent = summary);
   }
 
+  function getTemplateSummaryLabel() {
+    switch (templateEl?.value) {
+      case "educational":
+        return "Educacional";
+      case "authority":
+        return "Autoridade";
+      case "checklist":
+        return "Checklist";
+      case "myth":
+        return "Mito ou verdade";
+      case "storytelling":
+        return "Storytelling";
+      default:
+        return "Educacional";
+    }
+  }
+
   function updateBrandingSummary() {
     if (!brandingSummaryEl) {
       return;
     }
 
-    const templateLabel = templateEl?.selectedOptions?.[0]?.textContent?.trim() || "Educational";
-    const primaryColor = primaryColorEl?.value?.trim() || "#2E7BFF";
+    const templateLabel = getTemplateSummaryLabel();
+    const primaryColor = normalizeHexColor(primaryColorEl?.value);
     const profileHandle = profileHandleEl?.value?.trim() || "@seuperfil";
 
     brandingSummaryEl.textContent = `${templateLabel} • ${primaryColor} • ${profileHandle}`;
+  }
+
+  function syncColorPickerFromText() {
+    if (!primaryColorEl || !primaryColorPickerEl) {
+      return;
+    }
+
+    const normalized = normalizeHexColor(primaryColorEl.value);
+    primaryColorEl.value = normalized;
+    primaryColorPickerEl.value = normalized.toLowerCase();
+  }
+
+  function syncColorTextFromPicker() {
+    if (!primaryColorEl || !primaryColorPickerEl) {
+      return;
+    }
+
+    primaryColorEl.value = primaryColorPickerEl.value.toUpperCase();
   }
 
   function toggleAccordion(name: string) {
@@ -238,14 +291,11 @@ export function bindDashboardScreen(actions: {
           return;
         }
 
-        const currentPrompt = promptEl.value.trim();
-
-        promptEl.value = currentPrompt
-          ? `${currentPrompt} ${chipValue}`
-          : chipValue;
-
+        promptEl.value = chipValue;
         promptEl.focus();
-        setStatus(`Sugestão "${chipValue}" adicionada ao briefing.`);
+        promptEl.setSelectionRange(promptEl.value.length, promptEl.value.length);
+
+        setStatus(`Modelo "${button.textContent?.trim() || "Sugestão rápida"}" carregado no briefing.`);
       });
     });
   }
@@ -264,12 +314,31 @@ export function bindDashboardScreen(actions: {
     [
       seriesNameEl,
       profileHandleEl,
-      primaryColorEl,
       templateEl,
       ctaLabelEl,
     ].forEach((field) => {
       field?.addEventListener("input", updateBrandingSummary);
       field?.addEventListener("change", updateBrandingSummary);
+    });
+
+    primaryColorEl?.addEventListener("input", () => {
+      syncColorPickerFromText();
+      updateBrandingSummary();
+    });
+
+    primaryColorEl?.addEventListener("blur", () => {
+      syncColorPickerFromText();
+      updateBrandingSummary();
+    });
+
+    primaryColorPickerEl?.addEventListener("input", () => {
+      syncColorTextFromPicker();
+      updateBrandingSummary();
+    });
+
+    primaryColorPickerEl?.addEventListener("change", () => {
+      syncColorTextFromPicker();
+      updateBrandingSummary();
     });
   }
 
@@ -326,6 +395,7 @@ export function bindDashboardScreen(actions: {
   openTransactionsFromToolbarButton?.addEventListener("click", actions.onOpenTransactions);
 
   setCards(selectedCards);
+  syncColorPickerFromText();
   updateBrandingSummary();
   bindAccordions();
   bindCardsGrid();

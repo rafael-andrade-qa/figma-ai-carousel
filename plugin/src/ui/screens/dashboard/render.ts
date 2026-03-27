@@ -108,16 +108,17 @@ export function renderDashboardScreen(input: {
 
           <div class="dashboard-chips-wrap">
             <div class="dashboard-chips-label">Sugestões rápidas</div>
-            <div class="chips-row">
+            <div class="chips-row dashboard-chips-row">
               ${promptSuggestions
                 .map(
                   (suggestion) => `
                     <button
                       type="button"
-                      class="chip-button"
-                      data-prompt="${suggestion}"
+                      class="chip-button dashboard-chip-button"
+                      data-prompt="${suggestion.prompt.replace(/"/g, "&quot;")}"
+                      title="${suggestion.label}"
                     >
-                      ${suggestion}
+                      ${suggestion.label}
                     </button>
                   `
                 )
@@ -152,7 +153,7 @@ export function renderDashboardScreen(input: {
             <span class="accordion-copy">
               <span class="section-title">Branding</span>
               <span id="brandingSummary" class="accordion-summary">
-                Educational • #2E7BFF • @seuperfil
+                Educacional • #2E7BFF • @seuperfil
               </span>
             </span>
             <span class="accordion-icon">⌄</span>
@@ -163,36 +164,86 @@ export function renderDashboardScreen(input: {
 
             <div class="grid-2">
               <div>
-                <label class="field-label" for="seriesName">Nome da série</label>
+                <label class="field-label" for="seriesName">
+                  Nome da série
+                  <span
+                    class="field-tip"
+                    title="Texto curto que aparece como nome da série ou linha editorial do conteúdo. Ex.: Dicas de Tráfego, Pílulas de Marketing, Série Clínica."
+                  >
+                    ?
+                  </span>
+                </label>
                 <input id="seriesName" type="text" value="Nome da Série" />
               </div>
 
               <div>
-                <label class="field-label" for="profileHandle">Perfil</label>
+                <label class="field-label" for="profileHandle">
+                  Perfil
+                  <span
+                    class="field-tip"
+                    title="Usuário ou nome curto da marca que aparece nos cards. Ex.: @suaempresa ou @seuperfil."
+                  >
+                    ?
+                  </span>
+                </label>
                 <input id="profileHandle" type="text" value="@seuperfil" />
               </div>
             </div>
 
             <div class="grid-2 field-spacing">
               <div>
-                <label class="field-label" for="primaryColor">Cor principal</label>
-                <input id="primaryColor" type="text" value="#2E7BFF" />
+                <label class="field-label" for="primaryColor">
+                  Cor principal
+                  <span
+                    class="field-tip"
+                    title="Cor de destaque usada em botões, barras, detalhes e elementos visuais principais do template."
+                  >
+                    ?
+                  </span>
+                </label>
+
+                <div class="color-field">
+                  <input
+                    id="primaryColorPicker"
+                    class="color-field-picker"
+                    type="color"
+                    value="#2e7bff"
+                    aria-label="Selecionar cor principal"
+                  />
+                  <input id="primaryColor" type="text" value="#2E7BFF" />
+                </div>
               </div>
 
               <div>
-                <label class="field-label" for="template">Template</label>
+                <label class="field-label" for="template">
+                  Template
+                  <span
+                    class="field-tip"
+                    title="Define o estilo visual e a lógica de composição do carrossel. Você pode escolher o formato que melhor combina com o tipo de mensagem."
+                  >
+                    ?
+                  </span>
+                </label>
                 <select id="template">
-                  <option value="educational" selected>Educational</option>
-                  <option value="authority">Authority</option>
+                  <option value="educational" selected>Educacional</option>
+                  <option value="authority">Autoridade</option>
                   <option value="checklist">Checklist</option>
-                  <option value="myth">Myth</option>
+                  <option value="myth">Mito ou verdade</option>
                   <option value="storytelling">Storytelling</option>
                 </select>
               </div>
             </div>
 
             <div class="field-spacing">
-              <label class="field-label" for="ctaLabel">CTA final</label>
+              <label class="field-label" for="ctaLabel">
+                CTA final
+                <span
+                  class="field-tip"
+                  title="Chamada final para ação. Ex.: Agende sua consulta, Fale com nossa equipe, Clique no link da bio."
+                >
+                  ?
+                </span>
+              </label>
               <input id="ctaLabel" type="text" value="Agende sua consulta" />
             </div>
           </div>

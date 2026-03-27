@@ -176,6 +176,24 @@
   color: #334155;
 }
 
+.dashboard-chips-row {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 6px;
+  overflow: hidden;
+}
+
+.dashboard-chip-button {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 8px 10px;
+  font-size: 11px;
+  line-height: 1.1;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+
 .dashboard-actions {
   gap: 10px;
 }
@@ -240,11 +258,60 @@
 }
 
 .field-label {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   margin-bottom: 6px;
   font-size: 12px;
   font-weight: 700;
   color: #334155;
+}
+
+.field-tip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(15, 23, 42, 0.14);
+  background: rgba(255, 255, 255, 0.95);
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 800;
+  cursor: help;
+  flex: 0 0 auto;
+}
+
+.color-field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.color-field-picker {
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 12px;
+  background: #ffffff;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.color-field-picker::-webkit-color-swatch-wrapper {
+  padding: 4px;
+}
+
+.color-field-picker::-webkit-color-swatch {
+  border: 0;
+  border-radius: 8px;
+}
+
+.color-field #primaryColor {
+  flex: 1 1 auto;
 }
 
 .cards-grid {
@@ -317,7 +384,20 @@
     min-width: 0;
   }
 
+  .dashboard-chips-row {
+    overflow-x: auto;
+    padding-bottom: 2px;
+  }
+
+  .dashboard-chip-button {
+    flex: 0 0 auto;
+  }
+
   .cards-grid {
     grid-template-columns: 1fr;
+  }
+
+  .color-field {
+    align-items: stretch;
   }
 }

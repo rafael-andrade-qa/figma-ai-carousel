@@ -6,7 +6,7 @@ export type CreativeFormat =
   | "banner"
   | "whatsapp";
 
-export type CreativeFormatOption = {
+type CreativeFormatDefinition = {
   id: CreativeFormat;
   label: string;
   badge: string;
@@ -14,7 +14,12 @@ export type CreativeFormatOption = {
   availableNow: boolean;
 };
 
-export const CREATIVE_FORMATS: CreativeFormatOption[] = [
+export type PromptSuggestion = {
+  label: string;
+  prompt: string;
+};
+
+export const CREATIVE_FORMATS: CreativeFormatDefinition[] = [
   {
     id: "carousel",
     label: "Carrossel",
@@ -26,7 +31,7 @@ export const CREATIVE_FORMATS: CreativeFormatOption[] = [
     id: "static_post",
     label: "Post estático",
     badge: "Em breve",
-    description: "Peça única para oferta, prova social, autoridade ou anúncio.",
+    description: "Peça única para oferta, autoridade e prova social.",
     availableNow: false,
   },
   {
@@ -59,104 +64,127 @@ export const CREATIVE_FORMATS: CreativeFormatOption[] = [
   },
 ];
 
-export function getCreativeFormatLabel(format: CreativeFormat | null | undefined) {
-  if (!format) {
-    return "Criativo";
-  }
-
-  const match = CREATIVE_FORMATS.find((item) => item.id === format);
-  return match?.label ?? "Criativo";
+export function getCreativeFormatLabel(format: CreativeFormat): string {
+  return CREATIVE_FORMATS.find((item) => item.id === format)?.label ?? "Carrossel";
 }
 
-export function isCreativeFormatAvailableNow(format: CreativeFormat) {
-  const match = CREATIVE_FORMATS.find((item) => item.id === format);
-  return Boolean(match?.availableNow);
+export function isCreativeFormatAvailableNow(format: CreativeFormat): boolean {
+  return CREATIVE_FORMATS.find((item) => item.id === format)?.availableNow ?? false;
 }
 
-export function getDashboardTitleByFormat(format: CreativeFormat | null | undefined) {
+export function getDashboardTitleByFormat(format: CreativeFormat): string {
   switch (format) {
     case "carousel":
       return "Crie carrosséis com IA dentro do Figma";
     case "static_post":
-      return "Crie posts estáticos com IA dentro do Figma";
+      return "Crie posts com IA dentro do Figma";
     case "stories":
       return "Crie stories com IA dentro do Figma";
     case "reel_cover":
-      return "Crie capas para Reels com IA dentro do Figma";
+      return "Crie capas de reels com IA dentro do Figma";
     case "banner":
       return "Crie banners com IA dentro do Figma";
     case "whatsapp":
       return "Crie artes para WhatsApp com IA dentro do Figma";
     default:
-      return "Crie peças com IA dentro do Figma";
+      return "Crie criativos com IA dentro do Figma";
   }
 }
 
-export function getDashboardSubtitleByFormat(
-  format: CreativeFormat | null | undefined
-) {
+export function getDashboardSubtitleByFormat(format: CreativeFormat): string {
   switch (format) {
     case "carousel":
       return "Gere capa, conteúdo e CTA final com texto e imagem em poucos cliques.";
     case "static_post":
-      return "Crie uma peça única com texto, direção visual e composição pronta.";
+      return "Gere posts prontos para oferta, autoridade e prova social.";
     case "stories":
-      return "Monte criativos verticais rápidos com foco em retenção e ação.";
+      return "Monte sequências rápidas e visuais para conversão e engajamento.";
     case "reel_cover":
-      return "Gere capas mais chamativas para melhorar clique e percepção.";
+      return "Crie capas mais fortes para aumentar clique e percepção de valor.";
     case "banner":
-      return "Crie banners simples para campanhas, páginas e promoções.";
+      return "Monte banners diretos para campanhas, landing pages e anúncios.";
     case "whatsapp":
-      return "Gere artes diretas para divulgação, oferta e comunicação rápida.";
+      return "Crie peças rápidas para divulgação local e comunicação comercial.";
     default:
-      return "Transforme um briefing em um criativo pronto para usar.";
+      return "Gere criativos com IA direto no canvas do arquivo atual.";
   }
 }
 
-export function getPromptPlaceholderByFormat(
-  format: CreativeFormat | null | undefined
-) {
+export function getPromptPlaceholderByFormat(format: CreativeFormat): string {
   switch (format) {
     case "carousel":
-      return "Ex.: Carrossel para dentistas sobre o que fazer quando a agenda da clínica está vazia...";
+      return "Ex.: Crie um carrossel para [seu tema aqui], explicando o problema, os erros mais comuns, a solução ideal e finalizando com uma CTA clara...";
     case "static_post":
-      return "Ex.: Post estático para clínica estética promovendo harmonização facial com CTA para WhatsApp...";
+      return "Ex.: Crie um post direto para [seu tema aqui], com gancho forte, promessa clara e CTA objetiva...";
     case "stories":
-      return "Ex.: Sequência de stories para loja feminina divulgando promoção de fim de semana...";
+      return "Ex.: Crie uma sequência de stories sobre [seu tema aqui], com abertura forte, desenvolvimento curto e CTA final...";
     case "reel_cover":
-      return "Ex.: Capa para Reels sobre 3 erros que fazem sua campanha vender menos...";
+      return "Ex.: Crie uma capa de reels sobre [seu tema aqui], com headline forte e foco em clique...";
     case "banner":
-      return "Ex.: Banner para landing page de mentoria com headline forte e CTA comercial...";
+      return "Ex.: Crie um banner sobre [seu tema aqui], com oferta clara, benefício central e CTA...";
     case "whatsapp":
-      return "Ex.: Arte para WhatsApp divulgando promoção de Páscoa de uma confeitaria...";
+      return "Ex.: Crie uma arte para WhatsApp sobre [seu tema aqui], com comunicação rápida e foco em resposta...";
     default:
       return "Descreva o criativo que você quer gerar...";
   }
 }
 
-export function getPromptSuggestionsByFormat(
-  format: CreativeFormat | null | undefined
-) {
-  switch (format) {
-    case "carousel":
-      return [
-        "Erros comuns",
-        "Passo a passo",
-        "Mito ou verdade",
-        "Estudo de caso",
-        "Dicas práticas",
-      ];
-    case "static_post":
-      return ["Oferta direta", "Prova social", "Autoridade", "Lançamento", "Urgência"];
-    case "stories":
-      return ["Sequência", "Bastidores", "Pergunta", "Prova social", "Oferta rápida"];
-    case "reel_cover":
-      return ["Headline forte", "Antes e depois", "Erro grave", "Segredo", "Comparativo"];
-    case "banner":
-      return ["Headline comercial", "Campanha", "Oferta", "Lead magnet", "Conversão"];
-    case "whatsapp":
-      return ["Promoção local", "Cupom", "Comunicado", "Combo", "Chamada rápida"];
-    default:
-      return ["Oferta", "Autoridade", "Passo a passo", "Prova social", "Conversão"];
+export function getPromptSuggestionsByFormat(format: CreativeFormat): PromptSuggestion[] {
+  if (format !== "carousel") {
+    return [
+      {
+        label: "Oferta direta",
+        prompt:
+          "Crie um criativo sobre [seu tema aqui] com foco em oferta direta. Estruture a mensagem para chamar atenção rápido, destacar o principal benefício, reduzir objeções e terminar com uma CTA simples e clara.",
+      },
+      {
+        label: "Autoridade",
+        prompt:
+          "Crie um criativo sobre [seu tema aqui] com foco em autoridade. Organize a mensagem para mostrar domínio do assunto, gerar confiança e posicionar a marca como referência no tema.",
+      },
+      {
+        label: "Prova social",
+        prompt:
+          "Crie um criativo sobre [seu tema aqui] com foco em prova social. Mostre sinais de confiança, resultados, percepções do mercado e termine com uma CTA objetiva.",
+      },
+      {
+        label: "Objeções",
+        prompt:
+          "Crie um criativo sobre [seu tema aqui] quebrando as principais objeções que impedem a ação do público. Use linguagem clara, prática e persuasiva.",
+      },
+      {
+        label: "Passo a passo",
+        prompt:
+          "Crie um criativo sobre [seu tema aqui] em formato passo a passo, ensinando de forma simples, didática e prática, finalizando com CTA.",
+      },
+    ];
   }
+
+  return [
+    {
+      label: "Erros comuns",
+      prompt:
+        "Crie um carrossel para mídias sociais sobre [seu tema aqui] em formato de erros comuns. Estruture em 5 slides: 1) capa com gancho forte, 2) erro comum 1, 3) erro comum 2, 4) como corrigir ou qual é a abordagem certa, 5) CTA final. Use linguagem clara, estratégica, fácil de entender e pensada para gerar salvamentos.",
+    },
+    {
+      label: "Passo a passo",
+      prompt:
+        "Crie um carrossel para mídias sociais sobre [seu tema aqui] em formato passo a passo. Estruture em 5 slides: 1) capa com promessa clara, 2) passo 1, 3) passo 2, 4) passo 3, 5) CTA final. O conteúdo deve ser prático, objetivo, fácil de escanear e com cara de post salvável.",
+    },
+    {
+      label: "Mito ou verdade",
+      prompt:
+        "Crie um carrossel para mídias sociais sobre [seu tema aqui] em formato mito ou verdade. Estruture em 5 slides: 1) capa com gancho forte, 2) mito comum, 3) verdade por trás disso, 4) explicação prática ou implicação no mundo real, 5) CTA final. Use linguagem envolvente, clara e pensada para gerar curiosidade e compartilhamento.",
+    },
+    {
+      label: "Estudo de caso",
+      prompt:
+        "Crie um carrossel para mídias sociais sobre [seu tema aqui] em formato estudo de caso. Estruture em 5 slides: 1) capa com contexto forte, 2) cenário ou problema inicial, 3) solução aplicada, 4) resultado ou aprendizado principal, 5) CTA final. O texto deve passar autoridade, clareza e percepção de resultado.",
+    },
+    {
+      label: "Dicas práticas",
+      prompt:
+        "Crie um carrossel para mídias sociais sobre [seu tema aqui] em formato de dicas práticas. Estruture em 5 slides: 1) capa com promessa clara, 2) dica 1, 3) dica 2, 4) dica 3, 5) CTA final. Priorize linguagem simples, útil, escaneável e com forte potencial de salvamento.",
+    },
+  ];
 }

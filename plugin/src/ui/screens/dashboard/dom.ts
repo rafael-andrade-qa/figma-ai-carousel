@@ -9,6 +9,9 @@ export function getDashboardDom() {
     seriesNameEl: document.getElementById("seriesName") as HTMLInputElement | null,
     profileHandleEl: document.getElementById("profileHandle") as HTMLInputElement | null,
     primaryColorEl: document.getElementById("primaryColor") as HTMLInputElement | null,
+    primaryColorPickerEl: document.getElementById(
+      "primaryColorPicker"
+    ) as HTMLInputElement | null,
     templateEl: document.getElementById("template") as HTMLSelectElement | null,
     ctaLabelEl: document.getElementById("ctaLabel") as HTMLInputElement | null,
 
