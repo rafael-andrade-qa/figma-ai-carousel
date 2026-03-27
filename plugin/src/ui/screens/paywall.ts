@@ -1,79 +1,111 @@
 import type { PurchasePackageId } from "../../api/backend";
 
-export function renderPaywallScreen(currentCredits: number): string {
+function formatCreditsLabel(value: number) {
+  return `${value} ${value === 1 ? "crédito" : "créditos"}`;
+}
+
+export function renderPaywallScreen(currentCredits: number) {
   return `
-    <div class="app-shell">
-      <section class="hero hero-compact">
-        <div class="brand-row">
+    <div class="app-shell paywall-shell">
+      <section class="hero hero-compact paywall-hero">
+        <div class="paywall-topbar">
           <div class="brand">
             <div class="brand-mark">✦</div>
             <span>Figma AI Ads</span>
           </div>
-          <div class="badge">Sem créditos</div>
+
+          <button
+            id="paywallBack"
+            class="toolbar-button"
+            type="button"
+            title="Voltar"
+          >
+            <span class="toolbar-button-arrow">←</span>
+            <span>Voltar</span>
+          </button>
         </div>
 
-        <h1>Você ficou sem créditos</h1>
-        <p>
-          Escolha um pacote para continuar gerando carrosséis direto no Figma.
-        </p>
-      </section>
-
-      <div class="content">
-        <div class="balance-card">
-          <span>Saldo atual</span>
-          <strong>${currentCredits} créditos</strong>
-        </div>
-
-        <div class="section">
-          <p class="section-title">Escolha seu pacote</p>
-          <p class="section-help">
-            O checkout seguro do Stripe será aberto no navegador. Depois do pagamento,
-            o plugin tentará atualizar seu saldo automaticamente.
+        <div class="paywall-hero-copy">
+          <h1>Escolha um pacote de créditos</h1>
+          <p>
+            Continue gerando criativos direto no Figma com checkout seguro e atualização rápida do saldo.
           </p>
         </div>
+      </section>
 
-        <div class="pricing-grid">
-          <button class="price-card" type="button" data-package-id="starter">
-            <div class="price-title">Starter</div>
-            <div class="price-credits">20 créditos</div>
-            <div class="price-value">R$19</div>
-            <div class="price-help">Ótimo para testar no dia a dia</div>
+      <div class="content paywall-content">
+        <section class="section paywall-balance-card">
+          <div class="paywall-balance-copy">
+            <span class="paywall-balance-label">Saldo atual</span>
+            <strong class="paywall-balance-value">${formatCreditsLabel(currentCredits)}</strong>
+          </div>
+        </section>
+
+        <section class="section paywall-intro-card">
+          <p class="section-title">Escolha o pacote ideal</p>
+          <p class="section-help">
+            Ao clicar em um pacote, o checkout do Stripe será aberto no navegador.
+            Depois do pagamento, seu saldo será atualizado automaticamente.
+          </p>
+        </section>
+
+        <div class="pricing-grid paywall-pricing-grid">
+          <button class="price-card paywall-price-card" type="button" data-package-id="starter">
+            <div class="paywall-price-card-head">
+              <div>
+                <div class="price-title">Starter</div>
+                <div class="price-credits">20 créditos</div>
+              </div>
+            </div>
+
+            <div class="paywall-price-main">
+              <div class="price-value">R$19</div>
+              <div class="price-help">Ótimo para testar no dia a dia</div>
+            </div>
           </button>
 
-          <button class="price-card featured" type="button" data-package-id="pro">
-            <div class="price-badge">Mais popular</div>
-            <div class="price-title">Pro</div>
-            <div class="price-credits">60 créditos</div>
-            <div class="price-value">R$39</div>
-            <div class="price-help">Melhor equilíbrio entre preço e volume</div>
+          <button
+            class="price-card paywall-price-card featured"
+            type="button"
+            data-package-id="pro"
+          >
+            <div class="paywall-price-card-head">
+              <div>
+                <div class="price-title">Pro</div>
+                <div class="price-credits">60 créditos</div>
+              </div>
+
+              <div class="price-badge">Popular</div>
+            </div>
+
+            <div class="paywall-price-main">
+              <div class="price-value">R$39</div>
+              <div class="price-help">Melhor equilíbrio entre preço e volume</div>
+            </div>
           </button>
 
-          <button class="price-card" type="button" data-package-id="studio">
-            <div class="price-title">Studio</div>
-            <div class="price-credits">150 créditos</div>
-            <div class="price-value">R$79</div>
-            <div class="price-help">Para uso recorrente e equipe</div>
+          <button class="price-card paywall-price-card" type="button" data-package-id="studio">
+            <div class="paywall-price-card-head">
+              <div>
+                <div class="price-title">Studio</div>
+                <div class="price-credits">150 créditos</div>
+              </div>
+            </div>
+
+            <div class="paywall-price-main">
+              <div class="price-value">R$79</div>
+              <div class="price-help">Para uso recorrente e equipe</div>
+            </div>
           </button>
         </div>
 
-        <div id="paywallStatusCard" class="status-card">
+        <div id="paywallStatusCard" class="status-card paywall-status-card">
           <div class="status-top">
             <div class="status-dot"></div>
-            <div class="status-label">Pagamento</div>
+            <div class="status-label">Checkout</div>
           </div>
-          <div id="paywallStatusText" class="status-text">
-            Escolha um pacote para abrir o checkout.
-          </div>
-        </div>
 
-        <div class="actions" style="display:flex; flex-direction:column; gap:10px;">
-          <button id="refreshCreditsAfterPayment" class="primary-button" type="button">
-            Já paguei, atualizar saldo
-          </button>
-
-          <button id="paywallBack" class="ghost-button" type="button">
-            Voltar ao dashboard
-          </button>
+          <div id="paywallStatusText" class="status-text">Clique em um pacote para abrir o checkout.</div>
         </div>
       </div>
     </div>
@@ -83,91 +115,68 @@ export function renderPaywallScreen(currentCredits: number): string {
 export function bindPaywallScreen(actions: {
   onBack: () => void;
   onBuy: (packageId: PurchasePackageId) => void | Promise<void>;
-  onRefreshCredits: () => void | Promise<void>;
 }) {
   const backButton = document.getElementById("paywallBack") as HTMLButtonElement | null;
-  const refreshButton = document.getElementById(
-    "refreshCreditsAfterPayment"
-  ) as HTMLButtonElement | null;
   const statusCard = document.getElementById("paywallStatusCard") as HTMLDivElement | null;
   const statusText = document.getElementById("paywallStatusText") as HTMLDivElement | null;
-
-  const priceButtons = Array.from(
-    document.querySelectorAll<HTMLButtonElement>(".price-card")
-  );
 
   function setStatus(
     message: string,
     type: "default" | "success" | "error" = "default"
   ) {
-    if (!statusCard || !statusText) return;
+    if (!statusCard || !statusText) {
+      return;
+    }
 
     statusText.textContent = message;
     statusCard.classList.remove("success", "error");
 
-    if (type === "success") statusCard.classList.add("success");
-    if (type === "error") statusCard.classList.add("error");
-  }
-
-  function setLoading(isLoading: boolean, activePackageId?: PurchasePackageId) {
-    priceButtons.forEach((button) => {
-      const packageId = button.dataset.packageId as PurchasePackageId | undefined;
-      button.disabled = isLoading;
-
-      if (isLoading && activePackageId && packageId === activePackageId) {
-        button.dataset.originalText = button.innerHTML;
-        button.innerHTML = `
-          <div class="price-title">Abrindo checkout...</div>
-          <div class="price-help">Aguarde alguns instantes</div>
-        `;
-      } else if (!isLoading && button.dataset.originalText) {
-        button.innerHTML = button.dataset.originalText;
-        delete button.dataset.originalText;
-      }
-    });
-
-    if (refreshButton) {
-      refreshButton.disabled = isLoading;
-      refreshButton.textContent = isLoading
-        ? "Abrindo checkout..."
-        : "Já paguei, atualizar saldo";
+    if (type === "success") {
+      statusCard.classList.add("success");
     }
 
-    if (backButton) {
-      backButton.disabled = isLoading;
+    if (type === "error") {
+      statusCard.classList.add("error");
     }
   }
 
-  backButton?.addEventListener("click", actions.onBack);
+  function setBuyingState(activePackageId: string | null) {
+    document
+      .querySelectorAll<HTMLButtonElement>("[data-package-id]")
+      .forEach((button) => {
+        const isActive = button.dataset.packageId === activePackageId;
+        button.disabled = activePackageId !== null;
+        button.classList.toggle("is-loading", isActive);
+      });
+  }
 
-  refreshButton?.addEventListener("click", async () => {
-    try {
-      setStatus("Atualizando saldo no backend...");
-      await actions.onRefreshCredits();
-      setStatus("Saldo sincronizado com sucesso.", "success");
-    } catch {
-      setStatus("Não foi possível atualizar o saldo agora.", "error");
-    }
+  backButton?.addEventListener("click", () => {
+    actions.onBack();
   });
 
-  priceButtons.forEach((button) => {
+  document.querySelectorAll<HTMLButtonElement>("[data-package-id]").forEach((button) => {
     button.addEventListener("click", async () => {
       const packageId = button.dataset.packageId as PurchasePackageId | undefined;
-      if (!packageId) return;
+
+      if (!packageId) {
+        return;
+      }
 
       try {
-        setLoading(true, packageId);
-        setStatus("Criando checkout seguro...");
+        setBuyingState(packageId);
+        setStatus("Abrindo checkout seguro no navegador...");
 
         await actions.onBuy(packageId);
 
         setStatus(
-          "Checkout aberto no navegador. Após pagar, volte ao plugin. Vamos tentar atualizar seu saldo automaticamente."
+          "Checkout aberto. Assim que o pagamento for confirmado, seu saldo será atualizado automaticamente.",
+          "success"
         );
-      } catch {
+      } catch (error) {
+        console.error("[UI] Erro ao iniciar checkout:", error);
         setStatus("Não foi possível abrir o checkout agora.", "error");
       } finally {
-        setLoading(false);
+        setBuyingState(null);
       }
     });
   });

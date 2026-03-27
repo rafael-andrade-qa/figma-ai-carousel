@@ -16,6 +16,7 @@ import {
 } from "./state";
 import {
   getAccessTokenOrThrow,
+  getCurrentSessionSnapshot,
   onSupabaseAuthStateChange,
   requestEmailOtp,
   signOutSupabase,
@@ -27,43 +28,31 @@ import {
   bindCreditsGrantedScreen,
   renderCreditsGrantedScreen,
 } from "./screens/creditsGranted";
-import {
-  bindDashboardScreen,
-  renderDashboardScreen,
-} from "./screens/dashboard";
+import { bindDashboardScreen, renderDashboardScreen } from "./screens/dashboard";
 import { bindPaywallScreen, renderPaywallScreen } from "./screens/paywall";
+import {
+  bindSelectFormatScreen,
+  renderSelectFormatScreen,
+} from "./screens/selectFormat";
 import {
   bindTransactionsScreen,
   renderTransactionsScreen,
 } from "./screens/transactions";
 import { bindWelcomeScreen, renderWelcomeScreen } from "./screens/welcome";
-import {
-  bindSelectFormatScreen,
-  renderSelectFormatScreen,
-} from "./screens/selectFormat";
-
-import { isCreativeFormatAvailableNow } from "./creativeFormats";
-import { showToast } from "./toast";
 import { getAppRoot } from "./services/appRoot";
 import {
   getOtpResendCooldownSeconds,
   resetOtpResendCooldown,
   startOtpResendCooldown,
 } from "./services/otpCooldown";
-import { syncSessionWithSupabase } from "./services/session";
+import { isCreativeFormatAvailableNow } from "./creativeFormats";
 import { loadDashboardData } from "./services/dashboardData";
-import {
-  openExternalUrl,
-  pollCreditsAfterCheckout,
-} from "./services/checkout";
+import { openExternalUrl, pollCreditsAfterCheckout } from "./services/checkout";
+import { showToast } from "./toast";
+import { syncSessionWithSupabase } from "./services/session";
 
 export async function renderApp() {
   const root = getAppRoot();
-
-  if (!root) {
-    return;
-  }
-
   const state = getState();
 
   if (state.currentScreen === "welcome") {
@@ -87,24 +76,30 @@ export async function renderApp() {
 
     bindAuthScreen(
       {
-        onRequestCode: async (email: string) => {
+        onRequestCode: async (email) => {
           try {
             await requestEmailOtp(email);
-            startOtpResendCooldown();
             setPendingEmail(email);
+            startOtpResendCooldown();
             await renderApp();
-          } catch (error) {
-            console.error("[UI] Erro ao solicitar código OTP:", error);
 
             showToast({
-              title: "Não foi possível enviar o código",
-              message: "Confira seu email e tente novamente.",
+              title: "Código enviado",
+              message: "Enviamos um código de acesso para o seu email.",
+              variant: "success",
+            });
+          } catch (error) {
+            console.error("[UI] Erro ao solicitar OTP:", error);
+
+            showToast({
+              title: "Não foi possível enviar",
+              message: "Tente novamente em instantes.",
               variant: "error",
             });
           }
         },
 
-        onVerifyCode: async (code: string) => {
+        onVerifyCode: async (code) => {
           try {
             const email = getState().pendingEmail;
 
@@ -113,7 +108,6 @@ export async function renderApp() {
             }
 
             const session = await verifyEmailOtp(email, code);
-
             setAuthenticatedSession(session);
 
             const creditsResult = await requestCredits(session.accessToken);
@@ -267,26 +261,26 @@ export async function renderApp() {
 
           openExternalUrl(result.checkoutUrl);
 
-          void pollCreditsAfterCheckout(accessToken).then((pollResult) => {
+          void pollCreditsAfterCheckout(accessToken).then(async (pollResult) => {
             if (pollResult.updated || pollResult.credits > previousCredits) {
-              setScreen("dashboard");
-              void renderApp();
+              setCredits(pollResult.credits);
+              await renderApp();
+
+              showToast({
+                title: "Créditos atualizados",
+                message: "Seu saldo foi atualizado com sucesso.",
+                variant: "success",
+              });
             }
           });
         } catch (error) {
           console.error("[UI] Erro ao iniciar checkout:", error);
-        }
-      },
 
-      onRefreshCredits: async () => {
-        try {
-          const accessToken = await getAccessTokenOrThrow();
-          const result = await requestCredits(accessToken);
-
-          setCredits(result.credits);
-          await renderApp();
-        } catch (error) {
-          console.error("[UI] Erro ao atualizar créditos:", error);
+          showToast({
+            title: "Checkout indisponível",
+            message: "Não foi possível abrir o checkout agora.",
+            variant: "error",
+          });
         }
       },
     });
@@ -392,7 +386,13 @@ export async function bootstrapApp() {
       const creditsResult = await requestCredits(accessToken);
       setCredits(creditsResult.credits);
 
-      setScreen("selectFormat");
+      if (
+        state.currentScreen === "welcome" ||
+        state.currentScreen === "auth" ||
+        !state.currentScreen
+      ) {
+        setScreen("selectFormat");
+      }
     } catch (error) {
       console.error("[UI] Erro ao restaurar sessão:", error);
       clearAuthenticatedSession();
@@ -403,6 +403,9 @@ export async function bootstrapApp() {
   }
 
   onSupabaseAuthStateChange((session) => {
+    const previousState = getState();
+    const hadSession = Boolean(previousState.session);
+
     if (!session) {
       clearAuthenticatedSession();
       resetOtpResendCooldown();
@@ -412,7 +415,11 @@ export async function bootstrapApp() {
     }
 
     setAuthenticatedSession(session);
-    setScreen("selectFormat");
+
+    if (!hadSession) {
+      setScreen("selectFormat");
+    }
+
     void renderApp();
   });
 
